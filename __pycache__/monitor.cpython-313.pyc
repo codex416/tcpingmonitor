@@ -1,0 +1,155 @@
+?
+    鋥錴?  ?                  髮  ?S SK r S SKrS SKrS SKrS SKrS SKrS SKrS SKrS SKJ	r	  S SK
+J
+r
+  Sr\R                  R                  \S5      r\R                  R                  \S5      r\R                  R                  \S5      r\R                  R                  \S5      r " S	 S
+5      r\S:X  a  \" 5       R)                  5         gg)?   N)?ThreadPoolExecutor)?datetimez/opt/pingmonitorzconfig.json?logszmonitor.logzstatus.jsonc                   髷   ?\ rS rSrS rS rS rS rS rSS jr	SS jr
+S	 rS
+ rS r
+S rSS jr\S 5       rSS jrS rS rS rSrg
+)?Monitor?   c                 髕   ?0 U l         [        R                  " 5       U l        [        R
+                  " [        SS9  g )NT??exist_ok)?running_nodes?threading?Lock?status_lock?os?makedirs?LOG_DIR??selfs    ?/tmp/pmui/PingMonitor-ICMP-TCPing/pingmonitor-main/monitor.py?__init__?Monitor.__init__   s'   € ????$???+???
+??擥燿?+?   c                 罄  ?[         R                  " 5       R                  S5      nSU SU 3n[        USS9   [        R
+                  " [        SS9  [        [        SSS	9 nUR                  US
+-   5        S S S 5         [        R                  " [        S5        g ! , (       d  f       N+= f! [         a     g f = f! [         a  n[        SU 35         S nAg S nAff = f)
+N?%Y-%m-%d %H:%M:%S?[z] T)?flushr
+   ?a?utf-8??encoding?
+槎  u    [Log Error] 鍐欏叆鏃ュ織澶辫触: )r   ?now?strftime?printr   r   r   ?open?LOG_FILE?write?chmod?Exception)r   ?msg?timestamp?text?f?es         r   ?log?Monitor.log   s?  € ?桳扡揘?+?+???@????楻?榰?%??
+坉???		:?廗奒???/?攈?╣?6?????榯??$? 7?
+??????)? 7?6 ?
+??
+?	:??4癚癈?8?9?9	:鷖M   ?B; ?B?B; ?B+ ?
+B(?B; ?
+B8?B; ?B8?B; ?
+C?C?Cc                 骬  ? [        [        SSS9 n[        R                  " U5      nS S S 5        [	        W[
+        5      (       d  [
+        S5      eUR                  S/ 5        UR                  SS5        UR                  SS	5        U$ ! , (       d  f       Nf= f! [         a	    / SS	S
+.s $ f = f)N?rr   r   u   閰嶇疆鏍煎紡閿欒?nodes?worker??interval?   )r4   r5   r7   )	r&   ?CONFIG?json?load?isinstance?dict?ValueError?setdefaultr*   )r   r.   ?cfgs      r   ?load_config?Monitor.load_config+   s?  € ?
+	??攆榗℅?4??梚抜?搇?? 5?榗??(?(? ?5?6?6?廚塏?燘?'?廚塏?燫?(?廚塏?爎?*?圝? 5?4 ?	?????>?>?	?鷖(   ?B ?BˋB ?
+B?B ?B,?B,c                 筘   ? [        [        SSS9 n[        R                  " U5      nS S S 5        [	        W[
+        5      (       a  U$ 0 $ ! , (       d  f       N'= f! [         a    0 s $ f = f)Nr3   r   r   )r&   ?STATUS_FILEr:   r;   r<   r=   r*   )r   r.   ?datas      r   ?_read_status?Monitor._read_status8   s\   € ?	?攌???9窺?梱抷?搢?? :?%燿珼?1?1??9皉?9? :?9 ?	?奍?	鷖-   ?A ?A	?A ?A ?
+A?A ?A)?A)c                 骹  ?[          S3n [        USSS9 n[        R                  " XSSS9  S S S 5        [        R
+                  " U[         5         [        R                  " [         S5        g ! , (       d  f       NF= f! [         a     g f = f! [         a  n[        S	U 35         S nAg S nAff = f)
+Nz.tmp?wr   r   ?   F)?indent?ensure_asciir"   u(   [Status Save Error] 淇濆瓨鐘舵€佸け璐? )	rD   r&   r:   ?dumpr   ?replacer)   r*   r%   )r   rE   ?temp_filer.   r/   s        r   ?save_status?Monitor.save_status@   s?  € ?"恗??(??		B?恑?╳?7????????@? 8?廕奐恲??.?
+????爀?,? 8?7
+ ?
+??
+?	B??<窺窩?@?A?A	B鷖K   ?B ?A-?B ?A> ?
+A;?B ?
+B?B ?B?B ?
+B0?B+?B0c           
+      ?  ?U R                      U R                  5       nUR                  US   0 5      n[        R                  " 5       R                  S5      nUR
+                  S0 5      nUR
+                  S5      n	US:X  a  UR
+                  S5      S:w  d  U	(       d  Un	OS n	UR                  US   US   UX4US.5        S	X#XGU	S
+.US'   UR                  S0 5        U R                  U5        S S S 5        g ! , (       d  f       g = f)N?ipr   ?icmp?offline_since?   绂荤嚎?status?name?rX   rS   rW   ?delay?fail?lastT??enabledrW   rZ   r[   r\   rU   ?tcp)	r   rF   r?   r   r#   r$   ?get?updaterP   )
+r   ?noderW   rZ   r[   rE   ?itemr#   ?old_icmprU   s
+             r   ?update_icmp_status?Monitor.update_icmp_statusM   s?  € ?????$?$?&圖??????╮?2圖?????)?)?=?>圕?梮憍???+圚?$烲橪??9圡???!?????)╔?5綸?'怣 $??廗塊?爁?癟?盳??'竤?D?
+E?+皏?(??W圖?塋?廜塐楨??&???楾?"? ??鷖   岰C4?
+Dc                 ?  ?U R                      U R                  5       nUR                  US   0 5      nUR                  US   US   S.5        UR                  S0 5      n	U	R	                  [        U5      0 5      n
+[        R                  " 5       R                  S5      nU
+R	                  S5      nUS:X  a  U
+R	                  S5      S:w  d  U(       d  UnOS nX4UXkUS	.U	[        U5      '   U R                  U5        S S S 5        g ! , (       d  f       g = f)
+NrS   rX   )rX   rS   r_   r   rU   rV   rW   )rW   rZ   r[   ?stoppedr\   rU   )
+r   rF   r?   ra   r`   ?strr   r#   r$   rP   )
+r   rb   ?portrW   rZ   r[   rh   rE   rc   r_   ?oldr#   rU   s
+                r   ?update_tcp_status?Monitor.update_tcp_status`   s?  € ?????$?$?&圖??????╮?2圖?廗塊?爁?癟?盳?@?A??????,圕????榙?燫?(圕?????)?)?=?>圕?烥橤燨?4圡???!?????$??0??'怣 $?? ??"?.?圕?怐?塏? 
+??楾?"? ??鷖   岰-D?
+Dc           
+      ?  ?U R                      U R                  5       nUR                  US   0 5      nUR                  US   US   SSSSS.5        SSSSSS S.US	'   UR                  S
+0 5        U R	                  U5        S S S 5        g ! , (       d  f       g = f)NrS   rX   u	   鏈惎鐢ㄚ-r   rY   Fr]   rT   r_   )r   rF   r?   ra   rP   )r   rb   rE   rc   s       r   ?update_icmp_disabled?Monitor.update_icmp_disabledu   s?  € ?????$?$?&圖??????╮?2圖?廗塊?爁?癟?盳?.?繿?$?&?
+'? (-?萩?%╯繲?K圖?塋?廜塐楨??&???楾?"? ??鷖   岮3B	?
+Bc                 鬆   ?U R                      U R                  5       nX;   a  X!	 U R                  U5        S S S 5        g ! , (       d  f       g = f?N)r   rF   rP   )r   rS   rE   s      r   ?delete_status?Monitor.delete_status?  s=   € ?????$?$?&圖?媧?怘?? ? ??&? ??鷖	   ???A
+c                 ?  ? [         R                  " SSSSSU/[         R                  [         R                  SSS9nUR                  S	:w  a  g
+[
+        R                  " SUR                  5      nU(       a  SUR                  S5      S
+-   4$ S$ ! [         a     g
+f = f)N?pingz-c?1z-W?3T?   )?stdout?stderrr-   ?timeoutr   ?Fro   ztime[=<]?\s*([\d.]+)?   ?ms)Tro   )
+?subprocess?run?PIPE?DEVNULL?returncode?re?searchr{   ?groupr*   )r   rS   ?result?ms       r   rw   ?Monitor.ping?  s?  € ?	?梌抆燰═??竎??F?!??瑉?A?A?蠽W?Y團?? ? 燗?%?!????1????A圓?1怐?????爐?+?,?B皗?B?	??	鷖   侫
+B
+ ?=B
+ ?B
+ ?
+B?Bc                 驪  ?[         R                  " 5       n [        R                  " [	        U5      R                  S5      [
+        U5      4SS9   [         R                  " 5       U-
+  S-  nSUS S34sS S S 5        $ ! , (       d  f       g = f! [        [        [        4 a     gf = f)	Nz[]g      @)r}   i?  Tz.1fr€   r~   )
+?time?perf_counter?socket?create_connectionri   ?strip?int?OSErrorr>   ?OverflowError)r   ?hostrj   ?started?elapseds        r   ?tcping?Monitor.tcping?  s?  € ??#?#?%??	??)?)?╰?????@?纃??L蠽Y?Z??,?,?.??8窪?@????榼˙?/?/? [?Z?Z ??3?	??	鷖/   ?B
+ ?#A<?	B
+ ?
+B
+?B
+ ?B
+ ?B%?B%Nc                 箢  ?U(       d  g Ub  US    S[        U5       3O
+[        US   5      nUS   US   SX5U SU 3[        R                  " 5       R	                  S5      S.nUb  [        U5      US'    [
+        R                  " X&S	S
+9nUR                  5         U R                  US    SU SU S35        g ! [         a2  nU R                  US    SU SU S
+[        U5       35         S nAg S nAff = f)NrS   ?:rX   ?DOWNu
+    鏁呴殰锛歳   )rX   rS   rW   ?protocol?target?messager?  rj   ?   )r:   r}   ? u    TG鐙珛閫氱煡鎴愬姛u    TG閫氱煡澶辫触: )
+r?  ri   r   r#   r$   ?requests?post?raise_for_statusr0   r*   )	r   rb   r5   r?  rj   r?  ?payload?responser/   s	            r   ?notify?Monitor.notify?  s  € ???4?@怐?慗?榪?燭???,腸?萾?胦????╰癉﹝繴?'?)??癡癏?=?#????2?2?F?G?I?? ??!?沬圙怓塐?	U?梷拀燰??F圚??%?%?'?廐塇?榁?悀燪爔爅????N?O?P?	U?廐塇?榁?悀燪爔爅????J?萹???S?T?T	U鷖   ?AB8 ?
+C4?(C/?C4c                 髜  ?U R                  S/ 5      n[        U[        5      (       a%  [        R                  " SUR                  5       5      n/ n[        U[        5      (       a  UO/  H:  n [        U5      nSUs=::  a  S::  a  O  M   XB;  a  UR                  U5        M8  M:  M<     U$ ! [        [        4 a     MS  f = f)N?portsu	   [,锛孿s]+r   i  )r`   r<   ri   r?  ?splitr?  ?listr?  ?append?TypeErrorr>   )rb   ?rawr?  ?valuerj   s        r   ?normalized_ports?Monitor.normalized_ports?  s?  € ?廻塰恮??#??恈????????????5圕???&爏珼?1?1慡皉?9圗?
+??搝????%??%??<?桵慚??'? +=?%? :? ? 渮?*?
+??
+鷖   ?B(?B(?B<?B<c                 箴  ^ ^^^?Tb
+  TS    ST 3OTS   nTS:X  a  UUU 4S jOUU 4S jnS UUUU 4S
+ jjnU" 5       u  p塙(       a+  U" SU	SS	5        T R                  TS    S
+T S
+U SU	 35        gU" SSSS	5        T R                  TS    S
+T S
+U S35        Sn
+[        U
+SS9 GH  u  p糩        R                  " U5        T R	                  5       n
+[        U4S jU
+R
+                  S/ 5       5       S5      nUc    g	TS:X  a*  UR
+                  SS5      (       d  T R                  U5          g	TS:X  a  TT R                  U5      ;  a    g	UmU" 5       u  p塙(       a/  U" SU	SS	5        T R                  TS    S
+T S
+U SU SU	 3	5          gU" SSUS	5        T R                  TS    S
+T S
+U SU S35        GM     U" SSSS5        T R                  TS    S
+T S
+U S35        T R                  TUTT5        g	)!uN   ICMP/TCP 鍏辩敤鍚屼竴濂椾簲娆＄‘璁わ細棣栨祴澶辫触鍚庢寜 3/5/2/1 绉掗噸璇曘€侼rS   r?  ?TCPc                  ?   >?TR                  T S   T5      $ ?NrS   )r?  )rb   rj   r   s   €€€r   ?<lambda>?Monitor._run_target_cycle.<locals>.<lambda>?  s   鴢 ???燭???6r   c                  ?   >?TR                  T S   5      $ r?  )rw   )rb   r   s   €€r   r?  r?  ?  s   鴢 衃_譡d裑d衑i衘n裡o訹pr   ro   r   Fc                 骲   >?TS:X  a  TR                  TTXX#5        g TR                  TXU5        g )Nr?  )rl   re   )rW   rZ   r[   rh   rb   rj   r?  r   s       €€€€r   ?save?Monitor._run_target_cycle.<locals>.save?  s1   鴢 ??? ??&?&爐═???P??'?'?╢窽?Br   u   鍦ㄧ嚎rX   r?  u    鍦ㄧ嚎 Tu	   妫€娴嬩腑r   u!    绗竴娆″け璐ワ紝3 绉掑悗閲嶈瘯)?   rz   ?   r   r?  )?startc              3   骦   >#   ?U  H   oR                  S 5      TS    :X  d  M  Uv ?  M"     g7f?rS   N?r`   )?.0?nrb   s     €r   ?<genexpr>?Monitor._run_target_cycle.<locals>.<genexpr>?  s'    € ?Y?;?縰箄繲粄萪蠸W蒵?X烝橝?;鵶   ?+?+r4   ?ICMP?icmp_enabledu    绗瑄   娆℃娴嬫垚鍔燂紝鎭㈠鍦ㄧ嚎 u	   娆″け璐V   rz   u@    绗洓銆佺浜旀鍧囧け璐ワ紝姝ｅ紡鍒ゅ畾绂荤嚎骞跺仠姝㈡娴嫨ro   r   F)
+r0   ?enumerater?  ?sleeprA   ?nextr`   rp   r?  r?  )r   rb   r5   r?  rj   r?  ?checkr?  ?okrZ   ?waits?attempt?wait_secondsr@   ?currents   `` ``          r   ?_run_target_cycle?Monitor._run_target_cycle?  s'  麁 ?/?;怐?慗?榪???'?纃???C纔?L?6誗p??	C?	C? 揋???
+????燯?+?廐塇?榁?悀燪爔爅???????I?J??圼?榪??(???怐?慙????ˋ╢╔?V?W?X???.╱窤?>?!圙?廕奐恷?$??"?"?$圕??Y爏╳??;?Y衃_?`圙??????!???皀纃?K?K??)?)??2???? 燭??F?F纖?O?O??圖??塈圔??怷榰燼??/???楧?橪????癆癴癤窽??蠮i衘o衖p?q?r???榗?‥?2?廐塇?榁?悀燪爔爅????竒竃纈?P?Q? &?? 	
+圶恠楢榯?$???怐?慙????ˋ╢╔?u?v?w???怐??―?1?r   c                 ?
+  ^?US   mUR                  ST5      n[        5       n  U R                  5       n[        U4S jUR                  S/ 5       5       S 5      nU(       d'  U R	                  T5        U R                  U S35        GO璘R                  S5      =(       d    TnUR                  SS5      n[
+        S	[        UR                  S
+S5      =(       d    S5      5      nU R                  U5      n/ n	UR                  SS5      (       a  S
+U;  a  U	R                  S5        O9UR                  SS5      (       d"  U R                  U5        UR                  S
+5        U H  n
+SU
+4nX?  d  M  U	R                  U5        M!     U	(       Ga? [        [        S[        U	5      5      S9 nU	 V
+V
+s0 s H$  u  p赨R                  U R                   XVX?      X?_M&     nn
+n
+U Vs/ s H  oX?   4PM
+     sn GHs  u  nn UR#                  5       nU(       GdS  Uu  p赨 R                  5       n[        U4S jUR                  S/ 5       5       S 5      nU(       Ga  U
+S
+:X  aq  UR                  SS5      (       aZ  U R%                  5       R                  T0 5      R                  S0 5      nUR                  S5      S:X  a  UR'                  S
+5        M? M? U
+S:X  a? X燫                  U5      ;   aw  U R%                  5       R                  T0 5      R                  S0 5      R                  [)        U
+5      0 5      nUR                  S5      S:X  a  UR'                  SU
+45        GMg  GMj  GMm  GMp  GMs  GMv     S S S 5        U R,                     U R%                  5       nUR                  T0 5      nUR                  S0 5      nU Vs1 s H  n[)        U5      iM     nnUR/                  5        VVs0 s H  u  nnUU;   d  M  UU_M     snnUS'   UUT'   U R1                  U5        S S S 5        [2        R4                  " U5        GM  U R6                  R9                  TS 5        g s  sn
+n
+f s  snf ! [*         a%  nU R                  U SU SU 35         S nAGM? S nAff = f! , (       d  f       GN.= fs  snf s  snnf ! , (       d  f       N? f! [*         a   nU R                  U SU 35         S nAN璖 nAff = f! U R6                  R9                  TS 5        f = f)NrS   rX   Tc              3   骉   >#   ?U  H  oR                  S 5      T:X  d  M  Uv ?  M     g7fr?  r?  ?r?  r?  rS   s     €r   r?  ?Monitor.check_node.<locals>.<genexpr>?  s"    € ?R?<???纃?萺袬Q烸橯?<   ?(?(r4   u    宸插垹闄ゆ垨 IP 宸蹭慨鏀箁5   r6   rz   r7   r8   r?  r?  ?r?  Nr?  ?   )?max_workersc              3   骉   >#   ?U  H  oR                  S 5      T:X  d  M  Uv ?  M     g7fr?  r?  r?  s     €r   r?  r?    s'    € ?l?V?譠_裐_衊d覼e衖k裐k稟盇?V鵵?  rT   rW   rV   r_   r?  u    妫€娴嬪紓甯? u    鐩戞帶绾跨▼寮傚父: )r`   ?setrA   r?  rt   r0   ?maxr?  r?  r?  rp   ?discardr   ?min?len?submitr?  r?  rF   ?addri   r*   r   ?itemsrP   r?  r?  r   ?pop)r   ?original_noderX   rh   r@   rb   r5   r7   r?  ?targetsrj   ?key?poolr?  ?futuresr.   ?future?still_online?latestr?  ?str/   ?all_status?tcp_state?p?allowed?vrS   s                              @r   ?check_node?Monitor.check_node?  s?  鴢 ??? ??? ? ???,??????	-???&?&?(???R??????<?R蠺X?Y????&?&爎?*?桯慔?榲???@?A??梮憍??'?-????????.??榪?燾╦??=?C??D?E???-?-╠?3?? ????楴―?1?1癴繥?K?桸慛??2??????7?7??-?-╠?3?桹慜燜?+?!怐? ??怌??)???爏?+? "? ?+?窧?繥??M?N蠷V? 3:?#?9??? !烱橩??>?>?萮?]衊h衉o?o?9?  ?#? FM?M耊???玂罻?M橩楩燙?L?5瘆﹠???3?8燞?1?=?=??燜?2?l竩縵箊?蠸U?V?l衝r?s燝?.?3皏?=???萵衈b譈c袯c?5?B?B?D?H?H?萊?P?T?T蠻[衇_?`˙?1痸﹙癶????K萕蟍蒣衁_諱`?K?5??>?譑`袺`衋h覭i覥i?5?B?B?D?H?H?萊?P?T?T蠻Z衆^?_?c?c詃g衕l觗m衞q?r˙?1痸﹙癶????K萕蟍蒣衂_衋e衁f譓g?K? Dj?>? (/? (4? ,N? O? ?%?%?%?2?2?4怞?(焠檔≧??4怗?'??‥??6怚?4?5猽?渟?瀡﹗怗?5?@???H?Y?H﹖╭?華蠶X蒐燼??H?Y怗楨慛?,怞榬慛??$?$燴?0? &? ????$騯 饇 
+???"?"?爐?,I# ,N $-?L?$??―?????纐纁?J?K?KL) O?N8 6%Y? &?% ?	8?廐塇?恦?2???6?7?7	8 
+???"?"?爐?,鷖?  #R> ?S+ ?C!R> ?9R> ?R?+Q?R?Q?
+R?C
+Q?R?BQ?R?R> ?9R-?R"?R-?
+R'?R'?R-?!R> ?R?
+R
+?R?R?R
+?R?
+R?R> ?R-?
+R;?R> ?
+S(?S#?S+ ?S(?S+ ?T	c                 蠛  ? U R                  5       nUR                  S/ 5       Vs1 s H+  o"R                  S5      (       d  M  UR                  S5      iM-     nn[        U R                  5       H&  nXC;  d  M
+  U R                  R	                  US 5        M(     UR                  S/ 5       H? nUR                  S5      nU(       d  M  X@R                  ;  d  M.  SU R                  U'   [
+        R                  " U R                  U4SS9R                  5         U R                  SUR                  SU5       35        M?    [        R                  " S5        GMV  s  snf )	NTr4   rS   ?running)r?  ?args?daemonu   鍚姩鐩戞帶: rX   rz   )rA   r`   r?  r   r?  r
+   ?Threadr?  r?  r0   r?  r?  )r   r@   r?  ?configuredrS   rb   s         r   ?manager?Monitor.manager1  s  € ???"?"?$圕?2痺﹚皐??C?S?C?莡羥萒莧???????C圝?S???-?-?.???'??&?&?*?*?╰?4? /? ?????,??梄慩榙揯?????6?6?6?6怐?&?&爎?*??$?$―疧㎡??蠷V?W?]?]?_?桯慔榽╠痟﹉皏竢?B?C?D?E? -? 
+廕奐恞孧? Ss   ?E?Ec                 驠   ?U R                  S5        U R                  5         g )Nu)   PingMonitor鍚姩锛圛CMP Ping + TCPing锛?r0   r?  r   s    r   r?  ?Monitor.start@  s   € ????<?=????r   )r   r   )ro   r   r?  r?  rs   )?__name__?__module__?__qualname__?__firstlineno__r   r0   rA   rF   rP   re   rl   rp   rt   rw   r?  r?  ?staticmethodr?  r?  r?  r?  r?  ?__static_attributes__?r   r   r   r      sk   ??,?
+:????B?#?#?
+#?'?	??U? ?? ??-騘C-騄
+?r   r   ?__main__)r:   r?  r?  r
+   r?  r   r?  r?  ?concurrent.futuresr   r   ?BASE_DIR?path?joinr9   r   r'   rD   r   r  r?  r  r   r   ?<module>r
+     s?  ?? ?????	?	?
+?1??€?????恏??.€?????恱??(€?
+???????/€?廹塯弆塴?燷?3€?l?l館	 坺??僆嘜丱?? r   
