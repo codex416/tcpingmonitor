@@ -12,7 +12,7 @@ import socket
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-BASE_DIR = "/opt/pingmonitor"
+BASE_DIR = "/opt/tcpingmonitor"
 CONFIG = os.path.join(BASE_DIR, "config.json")
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 LOG_FILE = os.path.join(LOG_DIR, "monitor.log")
@@ -318,7 +318,7 @@ class Monitor:
             time.sleep(5)
 
     def start(self):
-        self.log("PingMonitor启动（ICMP Ping + TCPing）")
+        self.log("tcpingmonitor启动（ICMP Ping + TCPing）")
         self.manager()
 
 
