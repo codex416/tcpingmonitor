@@ -1,5 +1,5 @@
 [Unit]
-Description=PingMonitor Web Panel
+Description=tcpingmonitor Web Panel
 After=network.target
 
 
@@ -7,12 +7,12 @@ After=network.target
 
 User=www-data
 
-WorkingDirectory=/opt/pingmonitor
+WorkingDirectory=/opt/tcpingmonitor
 
 # Web 管理密码：仅作为首次初始化密码。之后请在控制面板中修改。
-Environment=PINGMONITOR_PASSWORD=123456
+Environment=tcpingmonitor_PASSWORD=123456
 
-ExecStart=/usr/bin/python3 /opt/pingmonitor/web.py
+ExecStart=/usr/bin/python3 /opt/tcpingmonitor/web.py
 
 Restart=always
 
