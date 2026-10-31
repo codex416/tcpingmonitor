@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#f2f2f7">
+<title>PingMonitor 登录</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: #f2f2f7;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+      "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    color: #1c1c1e;
+  }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .login-card {
+    width: min(380px, 100%);
+    background: #fff;
+    border-radius: 18px;
+    padding: 30px 26px 26px;
+    box-shadow: 0 8px 30px rgba(0,0,0,.06);
+  }
+  .title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.6px;
+    text-align: center;
+  }
+  .subtitle {
+    margin-top: 7px;
+    margin-bottom: 24px;
+    text-align: center;
+    color: #8e8e93;
+    font-size: 13px;
+  }
+  .field {
+    width: 100%;
+    height: 46px;
+    border: none;
+    outline: none;
+    border-radius: 10px;
+    background: #f2f2f7;
+    padding: 0 14px;
+    font-size: 15px;
+    color: #1c1c1e;
+  }
+  .field:focus { background: #e5e5ea; }
+  .login-btn {
+    width: 100%;
+    height: 46px;
+    margin-top: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #007aff;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .login-btn:disabled { opacity: .6; cursor: default; }
+  .error {
+    min-height: 20px;
+    margin-top: 10px;
+    color: #ff3b30;
+    font-size: 13px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="title">PingMonitor</div>
+    <div class="subtitle">请输入管理密码</div>
+    <form id="login-form">
+      <input id="password" class="field" type="password" placeholder="管理密码" autocomplete="current-password" autofocus>
+      <button id="login-btn" class="login-btn" type="submit">登录</button>
+      <div id="error" class="error"></div>
+    </form>
+  </div>
+
+<script>
+const form = document.getElementById("login-form");
+const password = document.getElementById("password");
+const button = document.getElementById("login-btn");
+const error = document.getElementById("error");
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  error.textContent = "";
+
+  const value = password.value;
+  if (!value) {
+    error.textContent = "请输入密码";
+    password.focus();
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = "登录中…";
+
+  try {
+    const res = await fetch("/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({ password: value }),
+      cache: "no-store"
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (res.ok && data.ok) {
+      window.location.href = "/";
+      return;
+    }
+
+    error.textContent = data.error || "登录失败";
+    password.select();
+  } catch {
+    error.textContent = "网络连接失败，请稍后重试";
+  } finally {
+    button.disabled = false;
+    button.textContent = "登录";
+  }
+});
+</script>
+</body>
+</html>
