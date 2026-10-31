@@ -21,7 +21,7 @@ from urllib.parse import quote
 APP_START_TIME = time.time()
 
 # 路径配置
-BASE_DIR = "/opt/pingmonitor"
+BASE_DIR = "/opt/tcpingmonitor"
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 LOG_FILE = os.path.join(BASE_DIR, "logs", "monitor.log")
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -57,7 +57,7 @@ def load_session_secret():
         print(f"[Auth] 无法保存 Session 密钥，使用临时密钥: {e}")
         return secrets.token_hex(32)
 
-app.secret_key = os.environ.get("PINGMONITOR_SECRET_KEY") or load_session_secret()
+app.secret_key = os.environ.get("tcpingmonitor_SECRET_KEY") or load_session_secret()
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -93,7 +93,7 @@ def get_web_password():
     stored_hash = cfg.get("web_password_hash")
     if stored_hash:
         return stored_hash
-    return os.environ.get("PINGMONITOR_PASSWORD", DEFAULT_WEB_PASSWORD)
+    return os.environ.get("tcpingmonitor_PASSWORD", DEFAULT_WEB_PASSWORD)
 
 
 def verify_web_password(password):
@@ -316,7 +316,7 @@ def format_ip_location(data):
 def query_ip_api(ip):
     params = "?fields=status,message,country,countryCode,region,regionName,city,isp,org,asname,query"
     url = IP_API_URL + quote(ip, safe="") + params
-    req = Request(url, headers={"Accept": "application/json", "User-Agent": "PingMonitor/1.0"})
+    req = Request(url, headers={"Accept": "application/json", "User-Agent": "tcpingmonitor/1.0"})
     with urlopen(req, timeout=8) as resp:
         if resp.status != 200:
             return None
@@ -787,7 +787,7 @@ def service(action):
 
     try:
         result = subprocess.run(
-            ["sudo", "systemctl", action, "pingmonitor"],
+            ["sudo", "systemctl", action, "tcpingmonitor"],
             timeout=10,
             capture_output=True,
             text=True
@@ -818,7 +818,7 @@ def system_info():
 
     try:
         res = subprocess.run(
-            ["systemctl", "is-active", "pingmonitor"],
+            ["systemctl", "is-active", "tcpingmonitor"],
             capture_output=True,
             text=True,
             timeout=3
@@ -827,7 +827,7 @@ def system_info():
 
         if running:
             res_mono = subprocess.run(
-                ["systemctl", "show", "pingmonitor", "--property=ActiveEnterTimestampMonotonic"],
+                ["systemctl", "show", "tcpingmonitor", "--property=ActiveEnterTimestampMonotonic"],
                 capture_output=True,
                 text=True,
                 timeout=3
