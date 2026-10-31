@@ -285,6 +285,11 @@
     pointer-events: auto;
   }
 
+  /* 节点管理模式下隐藏连续失败次数，退出管理模式后自动恢复 */
+  .node-cards-grid.sorting .node-fail {
+    display: none !important;
+  }
+
   /* 「节点管理」模式：显示编辑、删除按钮 */
   .node-cards-grid.sorting .node-action-group {
     display: flex;
@@ -872,6 +877,60 @@
   .node-heading-row .node-status-wrapper { gap: 5px !important; }
   .node-heading-row .node-health-pill { padding: 3px 6px; }
 }
+
+/* 移动端长地址省略显示：IP 与 TCPing 均单行截断，不挤压延迟/状态 */
+@media (max-width: 600px) {
+  .node-sub-info,
+  .node-ip-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .node-ip-wrap {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 3px !important;
+  }
+  .node-ip-wrap .ip-type-badge,
+  .node-ip-wrap .node-ip-copy {
+    flex: 0 0 auto;
+  }
+  .node-ip-wrap .node-ip {
+    /* IP 按实际文字宽度显示；过长时收缩省略，复制按钮紧跟其后 */
+    flex: 0 1 auto;
+    width: fit-content;
+    min-width: 0;
+    max-width: calc(100% - 68px);
+    overflow: hidden;
+  }
+  .node-ip-wrap .node-ip-link {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .tcp-port-item {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .tcp-port-item .tcp-ip-pill {
+    display: block;
+    justify-self: start;
+    width: fit-content;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+}
+
 </style>
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
@@ -1268,7 +1327,7 @@ function buildNodeStructure(nodes, isRunning) {
               <div class="node-sub-info">
                 <div class="node-ip-wrap">
                   <span class="ip-type-badge ${getIPType(n.ip) === 'IPv6' ? 'ip-type-v6' : 'ip-type-v4'}">${getIPType(n.ip)}</span>
-                  <span class="node-ip"><button class="node-ip-link" type="button" title="点击跳转 ITDOG 检测" onclick="openITDog('${escapeHtml(n.ip)}')">${escapeHtml(n.ip)}</button></span>
+                  <span class="node-ip"><button class="node-ip-link" type="button" title="${escapeHtml(n.ip)}" onclick="openITDog('${escapeHtml(n.ip)}')">${escapeHtml(n.ip)}</button></span>
                   <button class="node-ip-copy" type="button" title="复制 IP" aria-label="复制 IP" onclick="copyText('${escapeHtml(n.ip)}')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path></svg></button>
                 </div>
                 <span class="node-location" data-ip="${escapeHtml(n.ip)}" onclick="toggleLocation(this)">查询归属地...</span>
@@ -1276,7 +1335,7 @@ function buildNodeStructure(nodes, isRunning) {
             </div>
           </div>
           <div class="node-detail-content">
-            ${Array.isArray(n.ports) && n.ports.length ? `<div class="tcp-section-title"><span>TCPing 端口检测</span><span>${n.ports.length} 个端口</span></div><div class="tcp-ports-list">${n.ports.map(port => { const tcpTarget = getIPType(n.ip) === 'IPv6' ? `[${n.ip.replace(/^\[|\]$/g, '')}]:${Number(port)}` : `${n.ip}:${Number(port)}`; return `<span class="tcp-port-item" data-port="${Number(port)}"><button class="tcp-ip-pill" type="button" title="点击跳转 ITDOG TCPing" onclick="openITDogTCP('${escapeHtml(n.ip)}',${Number(port)})">${escapeHtml(tcpTarget)}</button><span class="tcp-port-state badge-checking">检测中</span><small class="tcp-offline-time" hidden></small></span>`; }).join('')}</div>` : '<div class="tcp-section-title"><span>TCPing</span><span>未配置端口</span></div>'}
+            ${Array.isArray(n.ports) && n.ports.length ? `<div class="tcp-section-title"><span>TCPing 端口检测</span><span>${n.ports.length} 个端口</span></div><div class="tcp-ports-list">${n.ports.map(port => { const tcpTarget = getIPType(n.ip) === 'IPv6' ? `[${n.ip.replace(/^\[|\]$/g, '')}]:${Number(port)}` : `${n.ip}:${Number(port)}`; return `<span class="tcp-port-item" data-port="${Number(port)}"><button class="tcp-ip-pill" type="button" title="${escapeHtml(tcpTarget)}" onclick="openITDogTCP('${escapeHtml(n.ip)}',${Number(port)})">${escapeHtml(tcpTarget)}</button><span class="tcp-port-state badge-checking">检测中</span><small class="tcp-offline-time" hidden></small></span>`; }).join('')}</div>` : '<div class="tcp-section-title"><span>TCPing</span><span>未配置端口</span></div>'}
           </div>
           <div class="node-bottom-row">
             <div class="node-stats-group"><span><span class="node-time-label">最后检测:</span> <strong class="stat-val node-last">-</strong></span><span class="fail-tag node-fail" hidden></span></div>
