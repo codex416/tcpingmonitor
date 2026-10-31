@@ -1355,15 +1355,10 @@ let dragRaf = 0;
 let activeSortPointerId = null;
 
 function getOrderedNodes(nodes) {
-    let saved = [];
-    try { saved = JSON.parse(localStorage.getItem(NODE_ORDER_KEY) || "[]"); } catch (_) { saved = []; }
-    if (!Array.isArray(saved) || !saved.length) return nodes;
-    const rank = new Map(saved.map((ip, index) => [String(ip), index]));
-    return [...nodes].sort((a, b) => {
-        const ai = rank.has(String(a.ip)) ? rank.get(String(a.ip)) : Number.MAX_SAFE_INTEGER;
-        const bi = rank.has(String(b.ip)) ? rank.get(String(b.ip)) : Number.MAX_SAFE_INTEGER;
-        return ai - bi;
-    });
+    // 节点顺序以服务器 config.json 为准，确保手机、电脑及不同浏览器一致。
+    // 清理旧版本保存在当前浏览器中的本地排序，避免覆盖服务器顺序。
+    try { localStorage.removeItem(NODE_ORDER_KEY); } catch (_) {}
+    return nodes;
 }
 
 function toggleNodeManagement(force) {
@@ -1479,11 +1474,35 @@ function enableNodeCardSorting() {
     container.addEventListener("pointercancel", finishDrag);
     window.addEventListener("blur", () => finishDrag());
 }
-function saveNodeCardOrder() {
+async function saveNodeCardOrder() {
     const grid = document.querySelector(".node-cards-grid");
     if (!grid) return;
-    const order = [...grid.querySelectorAll(":scope > .node-card")].map(card => card.dataset.ip).filter(Boolean);
-    try { localStorage.setItem(NODE_ORDER_KEY, JSON.stringify(order)); } catch (_) {}
+
+    const order = [...grid.querySelectorAll(":scope > .node-card")]
+        .map(card => card.dataset.ip)
+        .filter(Boolean);
+    if (!order.length) return;
+
+    try {
+        const res = await fetch("/api/reorder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nodes: order })
+        });
+        const result = await res.json().catch(() => ({}));
+
+        if (!res.ok || result.ok === false) {
+            showToast(result.msg || result.error || "节点排序同步失败");
+            await refreshDashboard();
+            return;
+        }
+
+        try { localStorage.removeItem(NODE_ORDER_KEY); } catch (_) {}
+        showToast("节点排序已同步");
+    } catch (_) {
+        showToast("节点排序同步失败，请检查网络");
+        await refreshDashboard();
+    }
 }
 
 function renderNodeStructureIfNeeded(nodes, isRunning) {
