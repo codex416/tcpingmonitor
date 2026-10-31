@@ -2,11 +2,11 @@
 
 set -euo pipefail
 
-APP_DIR="/opt/pingmonitor"
+APP_DIR="/opt/tcpingmonitor"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "=============================="
-echo " PingMonitor 安装开始"
+echo " tcpingmonitor 安装开始"
 echo "=============================="
 echo "源目录: $SCRIPT_DIR"
 echo "工作目录: $APP_DIR"
@@ -29,9 +29,9 @@ echo "同步完整 GitHub 仓库到 $APP_DIR"
 
 mkdir -p "$APP_DIR"
 
-# /opt/pingmonitor 直接作为 GitHub 仓库工作目录。
+# /opt/tcpingmonitor 直接作为 GitHub 仓库工作目录。
 # 保留 .git，这样以后可以直接：
-#   cd /opt/pingmonitor && git pull
+#   cd /opt/tcpingmonitor && git pull
 #
 # 运行时产生的文件不属于 Git 仓库，由安装脚本单独保留。
 if [[ "$SCRIPT_DIR" != "$APP_DIR" ]]; then
@@ -71,7 +71,7 @@ if [[ -f "$APP_DIR/.session_secret" ]]; then
 fi
 
 # web.py 和 monitor.py 都会使用“临时文件 + os.replace()”原子写入 JSON。
-# 因此 /opt/pingmonitor 本身必须允许 www-data 创建/替换运行时 JSON 临时文件。
+# 因此 /opt/tcpingmonitor 本身必须允许 www-data 创建/替换运行时 JSON 临时文件。
 # 文件本身仍保持 root:www-data，代码文件仍保持 root 管理。
 chown root:www-data "$APP_DIR"
 chmod 2775 "$APP_DIR"
@@ -99,31 +99,31 @@ done
 
 # 系统服务文件仍然安装到标准 systemd 目录。
 install -o root -g root -m 644 \
-    "$APP_DIR/pingmonitor.service" \
-    /etc/systemd/system/pingmonitor.service
+    "$APP_DIR/tcpingmonitor.service" \
+    /etc/systemd/system/tcpingmonitor.service
 
 install -o root -g root -m 644 \
-    "$APP_DIR/pingmonitor-web.service" \
-    /etc/systemd/system/pingmonitor-web.service
+    "$APP_DIR/tcpingmonitor-web.service" \
+    /etc/systemd/system/tcpingmonitor-web.service
 
 # sudoers 必须由 root 管理，权限保持 440。
 mkdir -p /etc/sudoers.d
 install -o root -g root -m 440 \
-    "$APP_DIR/sudoers/pingmonitor" \
-    /etc/sudoers.d/pingmonitor
+    "$APP_DIR/sudoers/tcpingmonitor" \
+    /etc/sudoers.d/tcpingmonitor
 
 # 检查 sudoers 语法，避免错误配置导致 sudo 异常。
-visudo -cf /etc/sudoers.d/pingmonitor
+visudo -cf /etc/sudoers.d/tcpingmonitor
 
 echo "验证 www-data 的运行目录写权限"
-sudo -u www-data sh -c 'tmp="/opt/pingmonitor/.pingmonitor-permission-test.tmp"; printf "%s" "ok" > "$tmp" && rm -f "$tmp"'
+sudo -u www-data sh -c 'tmp="/opt/tcpingmonitor/.tcpingmonitor-permission-test.tmp"; printf "%s" "ok" > "$tmp" && rm -f "$tmp"'
 
 echo "启动服务"
 systemctl daemon-reload
-systemctl enable pingmonitor
-systemctl enable pingmonitor-web
-systemctl restart pingmonitor
-systemctl restart pingmonitor-web
+systemctl enable tcpingmonitor
+systemctl enable tcpingmonitor-web
+systemctl restart tcpingmonitor
+systemctl restart tcpingmonitor-web
 
 IP=$(hostname -I | awk '{print $1}')
 
@@ -140,5 +140,5 @@ echo ""
 echo "Web 管理地址:"
 echo "http://${IP}:5000"
 echo "初始登录密码: 123456"
-echo "修改密码: 编辑 /opt/pingmonitor/pingmonitor-web.service 中的 PINGMONITOR_PASSWORD 后执行 systemctl restart pingmonitor-web"
+echo "修改密码: 编辑 /opt/tcpingmonitor/tcpingmonitor-web.service 中的 tcpingmonitor_PASSWORD 后执行 systemctl restart tcpingmonitor-web"
 echo "=============================="
