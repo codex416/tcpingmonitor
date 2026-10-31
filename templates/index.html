@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>PingMonitor</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; min-height: 100%;
+    background-color: var(--ios-bg) !important; color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif;
+    -webkit-font-smoothing: antialiased; overscroll-behavior-y: none;
+    overflow-x: hidden;
+  }
+  :root {
+    --ios-bg: #f2f2f7; --card-bg: #ffffff; --text-main: #1c1c1e; --text-muted: #8e8e93;
+    --ios-blue: #007aff; --ios-green: #34c759; --ios-red: #ff3b30; --ios-orange: #ff9500;
+    --card-radius: 14px; --divider-color: rgba(60, 60, 67, 0.08);
+  }
+  body.drawer-open {
+    overflow: hidden !important;
+    position: fixed;
+    width: 100%;
+  }
+  .main-wrapper { max-width: 1320px; margin: 0 auto; padding: 0 20px calc(80px + env(safe-area-inset-bottom)); background-color: var(--ios-bg); width: 100%; overflow: hidden; }
+  .ios-large-header { padding-top: calc(env(safe-area-inset-top) + 16px); padding-bottom: 8px; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .large-title { font-size: 28px; font-weight: 800; letter-spacing: -0.6px; color: var(--text-main); line-height: 1.1; }
+  .header-sub-row { display: flex; align-items: center; gap: 8px; margin-top: 0; flex-shrink: 0; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--ios-green); display: inline-block; flex-shrink: 0; transition: background-color 0.3s ease; }
+  .last-update-text { font-size: 12px; color: var(--text-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .desktop-control-btn { display: none; }
+
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .logout-btn {
+    height: 32px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 8px;
+    background: #e5e5ea;
+    color: var(--ios-blue);
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .logout-btn:hover { background: #dcdce1; }
+  @media (max-width: 991px) {
+    .header-actions { gap: 7px; }
+    .logout-btn { height: 30px; padding: 0 10px; }
+  }
+  
+  .group-title { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: -0.1px; margin: 16px 2px 8px; }
+  .group-title.middle-title { margin-top: 36px !important; margin-bottom: 12px !important; }
+  
+  .widget-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (min-width: 768px) { .widget-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
+  
+  .widget-card { background: var(--card-bg); border-radius: var(--card-radius); padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; height: 90px; }
+  .widget-lbl { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+  .widget-val { font-size: 28px; font-weight: 700; letter-spacing: -0.8px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ios-card { background: var(--card-bg); border-radius: var(--card-radius); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+  #nodes-container { overflow: hidden; max-height: none; width: 100%; }
+
+  .node-cards-grid { display: grid; grid-template-columns: 1fr; gap: 12px; width: 100%; box-sizing: border-box; }
+  @media (min-width: 992px) {
+    .node-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  }
+
+  .node-card {
+    background: var(--card-bg);
+    border-radius: var(--card-radius);
+    padding: 28px 30px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.025);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    border: 1px solid rgba(0,0,0,0.03);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, padding 0.25s ease;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .node-top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .node-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+  .node-name {
+    font-size: 16px;
+    font-family: inherit;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .node-sub-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+    width: 100%;
+  }
+  .node-ip-wrap { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ip-type-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 20px; padding: 0 6px; border-radius: 5px;
+    font-size: 10px; font-weight: 700; line-height: 1; flex-shrink: 0;
+  }
+  .ip-type-v4 { color: #007aff; background: rgba(0,122,255,0.10); }
+  .ip-type-v6 { color: #5856d6; background: rgba(88,86,214,0.10); }
+  .node-ip {
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: #636366;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(120, 120, 128, 0.08);
+    padding: 2px 6px;
+    border-radius: 5px;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+  .node-ip:hover {
+    color: var(--ios-blue);
+    background: rgba(0, 122, 255, 0.1);
+  }
+
+
+  /* ----------------------------------------------------
+     修改：归属地独立占满第二行、超过部分截断可点击展开
+  ---------------------------------------------------- */
+
+  .node-ip-link {
+    border: none; font: inherit; color: inherit; cursor: pointer; background: transparent; padding: 0;
+    text-align: left; text-decoration: none;
+  }
+  .node-ip-link:hover { color: var(--ios-blue); }
+  .node-ip-copy {
+    width: 24px; height: 24px; border: none; background: rgba(120,120,128,0.08); border-radius: 5px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: #8e8e93;
+    flex-shrink: 0;
+  }
+  .node-ip-copy:hover { color: var(--ios-blue); background: rgba(0,122,255,0.10); }
+  .node-ip-copy::before { display: none; }
+.node-ip-copy svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+  .node-location {
+    font-size: 12px;
+    font-family: inherit;
+    color: #8e8e93;
+    display: block;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+    margin-top: 1px;
+  }
+  .node-location:hover {
+    color: var(--ios-blue);
+  }
+  /* 点击展开状态：解除单行截断限制 */
+  .node-location.expanded {
+    white-space: normal;
+    word-break: break-all;
+  }
+
+  .node-status-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .badge-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-status-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge-online { color: #248a3d; background: rgba(52,199,89,0.12); }
+  .badge-online .dot { background: var(--ios-green); box-shadow: 0 0 6px rgba(52,199,89,0.6); }
+  .badge-offline { color: var(--ios-red); background: rgba(255,59,48,0.12); }
+  .badge-offline .dot { background: var(--ios-red); box-shadow: 0 0 6px rgba(255,59,48,0.6); }
+  .badge-checking { color: var(--ios-blue); background: rgba(0,122,255,0.12); }
+  .badge-checking .dot { background: var(--ios-blue); }
+
+  .delay-text {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.2px;
+  }
+  .delay-good { color: #30d158; }
+  .delay-medium { color: var(--ios-orange); }
+  .delay-bad { color: var(--ios-red); }
+
+  .node-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    border-top: 1px solid var(--divider-color);
+    width: 100%;
+  }
+  .node-stats-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+  .stat-val { font-weight: 600; color: #3a3a3c; font-variant-numeric: tabular-nums; }
+  .fail-tag {
+    color: var(--ios-red);
+    background: rgba(255,59,48,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  /* 默认隐藏节点编辑/删除操作，但保留占位空间，确保卡片尺寸始终一致 */
+  .node-action-group {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* 「节点管理」模式：显示编辑、删除按钮 */
+  .node-cards-grid.sorting .node-action-group {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 「节点管理」模式：显示编辑、删除按钮 */
+  .node-cards-grid.sorting .node-action-group {
+    display: flex;
+  }
+  .action-btn-sm {
+    height: 28px;
+    font-family: inherit;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .edit-btn { background: #f2f2f7; color: var(--ios-blue); }
+  .del-btn { background: rgba(255,59,48,0.08); color: var(--ios-red); }
+
+  .node-list-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .node-list-header .group-title { margin-right: 0; }
+  .node-sort-btn { height: 30px; padding: 0 14px; border: none; border-radius: 8px; background: #e5e5ea; color: var(--ios-blue); font-size: 12px; font-family: inherit; font-weight: 600; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
+  .node-sort-btn.active { background: var(--ios-blue); color: #fff; }
+  
+  .node-sort-handle {
+    display: none;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    color: #a1a1a6;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 3px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 6px;
+    z-index: 2;
+  }
+  .node-sort-handle span { display: block; width: 16px; height: 2px; border-radius: 2px; background: currentColor; }
+  
+  /* 仅在「节点管理」模式下启用拖动排序 */
+  .node-cards-grid.sorting .node-sort-handle { display: flex; }
+  .node-cards-grid.sorting .node-card {
+    padding-left: 38px !important;
+    border: 1px dashed rgba(0,122,255,0.4);
+  }
+  .node-card.dragging { opacity: 0.6; transform: scale(0.98); box-shadow: 0 10px 25px rgba(0,0,0,0.12); background: #fdfdfd; }
+
+  .empty-pc { display: none; }
+  .empty-mobile { display: inline; }
+  @media (min-width: 992px) {
+    .empty-pc { display: inline; }
+    .empty-mobile { display: none; }
+  }
+
+  .input-group { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .protocol-options { display:flex; align-items:center; gap:12px; flex-wrap:wrap; font-size:13px; color:var(--text-main); }
+  .protocol-options label, .edit-modal-field label { display:flex; align-items:center; gap:7px; }
+  .protocol-options input, .edit-modal-field input[type="checkbox"] { accent-color:var(--ios-blue); }
+  .protocol-hint { color:var(--text-muted); font-size:12px; }
+  .tcp-ports-list { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+  .tcp-port-item { display:inline-flex; flex-direction:column; align-items:flex-start; gap:4px; padding:0; background:transparent; font-size:12px; }
+  .tcp-ip-pill { display:inline-flex; align-items:center; padding:4px 10px; border:0; border-radius:20px; background:rgba(0,122,255,0.10); color:var(--ios-blue); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+  .tcp-port-state { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  .tcp-port-state::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .tcp-port-state.badge-online { color:#248a3d; background:rgba(52,199,89,0.12); }
+  .tcp-port-state.badge-offline { color:var(--ios-red); background:rgba(255,59,48,0.12); }
+  .tcp-port-state.badge-checking { color:var(--ios-blue); background:rgba(0,122,255,0.12); }
+  .tcp-offline-time { color:var(--text-muted); font-size:11px; line-height:1.3; padding-left:3px; }
+  .icmp-offline-time { color:var(--ios-red); font-size:11px; margin-top:2px; }
+  .ios-input { width: 100%; height: 40px; background: #f2f2f7; border: none; border-radius: 8px; padding: 0 12px; font-size: 14px; font-family: inherit; color: var(--text-main); outline: none; }
+  .ios-input:focus { background: #e5e5ea; }
+  .ios-btn { height: 40px; border-radius: 8px; border: none; background: var(--ios-blue); color: #ffffff; font-size: 14px; font-family: inherit; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .ios-btn-secondary { background: #e5e5ea; color: var(--ios-blue); }
+  .ios-btn-danger { background: rgba(255,59,48,0.12); color: var(--ios-red); }
+  
+  .terminal-card { background: #1c1c1e; border-radius: var(--card-radius); padding: 14px 18px; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.03); height: 260px; flex-shrink: 0; }
+  .terminal-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 0.5px solid rgba(255,255,255,0.12); flex-shrink: 0; }
+  .terminal-title { font-size: 11px; color: #8e8e93; font-weight: 600; letter-spacing: 0.5px; font-family: SFMono-Regular, Consolas, Monaco, monospace; }
+  .terminal-clear-btn { background: rgba(255,59,48,0.2); color: #ff453a; border: none; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-family: inherit; font-weight: 600; cursor: pointer; }
+  .terminal-body { flex: 1; overflow-y: auto; color: #34c759; font-family: SFMono-Regular, Consolas, Monaco, monospace; font-size: 12px; line-height: 1.6; word-break: break-all; }
+  
+  @media (max-width: 991px) {
+    .dashboard-grid { display: flex; flex-direction: column; gap: 16px; }
+    .main-section { display: flex; flex-direction: column; gap: 8px; }
+    .drawer-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; height: 100dvh;
+      background: rgba(0,0,0,0.45); opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 0.3s ease, visibility 0.3s ease; z-index: 900;
+    }
+    .drawer-overlay.open { opacity: 1 !important; visibility: visible !important; pointer-events: auto !important; }
+    
+    .bottom-drawer {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: calc(100vh - env(safe-area-inset-top) - 10px); height: calc(100dvh - env(safe-area-inset-top) - 10px);
+      max-height: 720px; background: #f2f2f7; border-top-left-radius: 20px; border-top-right-radius: 20px;
+      box-shadow: 0 -6px 25px rgba(0,0,0,0.12); z-index: 1000;
+      transform: translate3d(0, 100%, 0);
+      visibility: hidden; pointer-events: none; will-change: transform;
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.32s;
+      display: flex; flex-direction: column; touch-action: none;
+    }
+    .bottom-drawer.open { transform: translate3d(0, 0, 0) !important; visibility: visible !important; pointer-events: auto !important; }
+    .bottom-drawer.closed { transform: translate3d(0, 100%, 0) !important; visibility: hidden !important; pointer-events: none !important; }
+    .drawer-header-area { flex-shrink: 0; cursor: grab; user-select: none; padding-bottom: 4px; background: #f2f2f7; border-top-left-radius: 20px; border-top-right-radius: 20px; }
+    .drawer-header { height: 22px; display: flex; align-items: center; justify-content: center; }
+    .drawer-pill { width: 36px; height: 5px; border-radius: 3px; background: rgba(60,60,67,0.3); }
+    .drawer-title-bar { padding: 0 20px 10px; display: flex; align-items: center; justify-content: space-between; }
+    .drawer-title { font-size: 16px; font-weight: 700; }
+    .drawer-content { flex: 1; overflow-y: auto; padding: 0 16px calc(40px + env(safe-area-inset-bottom)); -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  }
+
+  @media (min-width: 992px) {
+    .desktop-control-btn {
+      display: flex; position: absolute; top: 24px; right: 20px; height: 38px; padding: 0 16px;
+      align-items: center; justify-content: center; border: none; border-radius: 10px;
+      background: var(--ios-blue); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08); z-index: 5;
+    }
+    .main-wrapper { position: relative; }
+    .drawer-overlay { display: none !important; }
+    .bottom-drawer {
+      position: fixed !important; top: 50% !important; left: 50% !important; bottom: auto !important;
+      width: min(720px, calc(100vw - 48px)) !important; height: min(780px, calc(100vh - 48px)) !important;
+      transform: translate(-50%, -50%) scale(0.96) !important; visibility: hidden !important;
+      pointer-events: none !important; opacity: 0 !important; background: #f2f2f7 !important;
+      border-radius: 18px !important; box-shadow: 0 18px 55px rgba(0,0,0,0.22) !important;
+      z-index: 2000 !important; display: flex !important; flex-direction: column !important;
+      transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease !important;
+      overflow: hidden !important;
+    }
+    .bottom-drawer.open { transform: translate(-50%, -50%) scale(1) !important; visibility: visible !important; pointer-events: auto !important; opacity: 1 !important; }
+    .drawer-header-area { flex-shrink: 0; cursor: default !important; padding-bottom: 4px; background: #f2f2f7; }
+    .drawer-header { height: 22px; }
+    .drawer-title-bar { padding: 4px 20px 14px; }
+    .drawer-content { flex: 1 !important; display: flex !important; flex-direction: column !important; padding: 0 16px 24px !important; overflow-y: auto !important; }
+    .controls-sidebar, .logs-section-wrapper { display: flex; flex-direction: column; }
+    .dashboard-grid { display: block; margin-top: 10px; }
+    .main-section { display: flex; flex-direction: column; }
+    .terminal-card { height: 260px; }
+  }
+
+  .edit-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.38); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 2100; }
+  .edit-modal-overlay.open { display: flex; }
+  .edit-modal { width: min(420px, 100%); background: var(--card-bg); border-radius: 16px; box-shadow: 0 18px 55px rgba(0,0,0,0.22); padding: 20px; }
+  .edit-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .edit-modal-field { margin-bottom: 12px; }
+  .edit-modal-field label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+  .edit-modal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .edit-modal-actions button { height: 40px; border: none; border-radius: 8px; font-size: 14px; font-family: inherit; font-weight: 600; cursor: pointer; }
+  .edit-cancel-btn { background: #e5e5ea; color: var(--text-main); }
+  .edit-save-btn { background: var(--ios-blue); color: #fff; }
+  #toast {
+    position: fixed; top: calc(env(safe-area-inset-top) + 20px); left: 50%;
+    transform: translateX(-50%) translateY(-60px); background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #fff;
+    padding: 10px 24px; border-radius: 25px; font-size: 14px; font-family: inherit; font-weight: 500;
+    opacity: 0; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); z-index: 2000; pointer-events: none;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ===== PC 鼠标滚轮滚动修复 ===== */
+@media (min-width: 992px) {
+    html, body {
+        overflow-y: auto !important;
+        overflow-x: hidden;
+    }
+
+    body {
+        overscroll-behavior-y: auto;
+    }
+
+    #main,
+    .main,
+    .main-content,
+    .content,
+    .page-content {
+        overflow-y: visible !important;
+    }
+
+    #drawer-content,
+    .drawer-content {
+        overscroll-behavior: contain;
+    }
+}
+
+
+/* 控制面板关闭时，遮罩层绝不拦截鼠标事件 */
+#drawer-overlay:not(.open),
+.drawer-overlay:not(.open) {
+    pointer-events: none !important;
+}
+
+/* 打开时遮罩可点击，用于关闭面板 */
+#drawer-overlay.open,
+.drawer-overlay.open {
+    pointer-events: auto;
+}
+
+
+/* ===== 节点卡片密度与顶部标题最终优化 ===== */
+.node-card { padding: 19px 22px 12px; gap: 15px; box-shadow: none; border: 1px solid rgba(0,0,0,0.06); }
+.node-identity { gap: 5px; }
+.node-sub-info { gap: 5px; }
+.node-bottom-row { padding-top: 12px; padding-bottom: 0; }
+.node-stats-group { gap: 6px; font-size: 12px; line-height: 1.4; }
+.node-stats-group > span { line-height: 1.4; }
+.node-action-group { gap: 7px; }
+
+/* 顶部标题与更新时间同一行，PC 为控制按钮预留空间 */
+.ios-large-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-right: 0;
+}
+.header-sub-row { margin-top: 0; flex-shrink: 0; }
+@media (min-width: 992px) {
+  .ios-large-header { padding-right: 150px; min-height: 64px; }
+  .large-title { font-size: 27px; }
+  .last-update-text { font-size: 12px; }
+  .desktop-control-btn { top: 22px; }
+}
+@media (max-width: 991px) {
+  .node-card { padding: 18px 18px 11px; gap: 14px; }
+  .node-bottom-row { padding-top: 11px; padding-bottom: 0; }
+}
+
+
+/* ===== 顶部标题栏：PC 三项同一水平线 ===== */
+@media (min-width: 992px) {
+  .ios-large-header {
+    height: 72px;
+    min-height: 72px;
+    padding: 0 112px 0 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  .large-title {
+    font-size: 26px !important;
+    line-height: 1 !important;
+    flex-shrink: 0;
+  }
+  .header-sub-row {
+    margin: 0 !important;
+    height: 38px;
+    display: flex !important;
+    align-items: center !important;
+    white-space: nowrap;
+  }
+  .desktop-control-btn {
+    top: 17px !important;
+    right: 20px !important;
+    height: 38px !important;
+  }
+}
+
+
+/* ===== 标题与卡片间距统一：系统状态概览 = 监控节点列表 ===== */
+.node-list-header {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+.node-list-header .group-title {
+  margin: 0 2px !important;
+}
+
+/* 保持监控节点列表与排序按钮严格同一水平线 */
+.node-list-header {
+  align-items: center !important;
+}
+
+/* ===== 节点 IP 与在线状态优化 ===== */
+.node-ip {
+  font-family: inherit !important;
+  color: #000 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+.node-ip-link { color: #000 !important; text-shadow: none !important; }
+.node-ip-copy, .node-ip-copy:hover { box-shadow: none !important; filter: none !important; }
+.node-status-wrapper { display: flex !important; }
+.node-name { display: inline-flex !important; align-items: center; gap: 7px; }
+.node-status-dot {
+  width: 9px;
+  height: 9px;
+  min-width: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: none !important;
+}
+.node-status-dot.badge-online { background: var(--ios-green) !important; }
+.node-status-dot.badge-offline { background: var(--ios-red) !important; }
+.node-status-dot.badge-checking { background: var(--ios-orange) !important; }
+.node-delay { margin-left: auto; }
+
+
+/* ===== PC端 IP 字体强制统一（正式覆盖） ===== */
+@media (min-width: 992px) {
+  .node-ip,
+  .node-ip .node-ip-link,
+  .node-ip-link {
+    font-family: inherit !important;
+    font-variant-numeric: tabular-nums;
+    font-size: inherit !important;
+    font-weight: 600 !important;
+    color: #000 !important;
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 !important;
+    opacity: 1 !important;
+  }
+}
+
+
+  /* ===== Apple / iOS system typography ===== */
+  button, input, textarea, select {
+    font-family: inherit;
+  }
+  input::placeholder, textarea::placeholder {
+    font-family: inherit;
+  }
+  .widget-val, .delay-text, .stat-val, .last-update-text, .node-ip, #service-uptime {
+    font-variant-numeric: tabular-nums;
+  }
+
+
+/* ===== IP 样式最终强制覆盖 ===== */
+.node-ip, .node-ip:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.node-ip-copy, .node-ip-copy:hover, .node-ip-copy:active, .node-ip-copy:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+@media (min-width: 992px) {
+  .node-ip, .node-ip .node-ip-link, .node-ip-link {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: normal !important;
+    color: #000 !important;
+  }
+}
+
+
+/* ===== 最终统一 IP 字体：PC 与移动端使用完全相同的计算样式 ===== */
+.node-ip,
+.node-ip .node-ip-link,
+.node-ip-link {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: normal !important;
+  letter-spacing: normal !important;
+  font-style: normal !important;
+  font-variant-numeric: tabular-nums !important;
+  color: #000 !important;
+}
+@media (min-width: 992px) {
+  .node-ip,
+  .node-ip .node-ip-link,
+  .node-ip-link {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: normal !important;
+    letter-spacing: normal !important;
+  }
+}
+
+
+/* ===== IP字体与归属地完全统一（最终覆盖） ===== */
+.node-ip,
+.node-ip .node-ip-link,
+.node-ip-link {
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: normal !important;
+  letter-spacing: normal !important;
+  font-variant-numeric: normal !important;
+  -webkit-text-size-adjust: 100% !important;
+}
+@media (min-width: 992px) {
+  .node-ip,
+  .node-ip .node-ip-link,
+  .node-ip-link {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: normal !important;
+    letter-spacing: normal !important;
+    font-variant-numeric: normal !important;
+  }
+}
+
+/* ===== IP 最终样式：与最后检测数字完全一致 ===== */
+.node-ip,
+.node-ip .node-ip-link,
+.node-ip-link {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: 600 !important;
+  color: #3a3a3c !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: normal !important;
+  letter-spacing: normal !important;
+}
+.node-ip, .node-ip:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+.node-ip-copy, .node-ip-copy:hover, .node-ip-copy:active, .node-ip-copy:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+
+/* ===== PingMonitor 2.0 · 卡片与交互优化 ===== */
+:root { --card-radius: 17px; --card-shadow: 0 5px 20px rgba(20,35,60,.045); }
+.node-cards-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 15px; align-items: start; }
+.node-card { padding: 18px 19px 14px; gap: 13px; border: 1px solid rgba(60,60,67,.09); border-radius: 17px; box-shadow: var(--card-shadow); min-width: 0; }
+.node-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(20,35,60,.085); }
+.node-card.card-online { border-left: 3px solid #34c759; }
+.node-card.card-warning { border-left: 3px solid #ff9f0a; }
+.node-card.card-offline { border-left: 3px solid #ff453a; }
+.node-top-row { align-items: center; }
+.node-identity { gap: 8px; }
+.node-name { font-size: 15px; letter-spacing: -.2px; }
+.node-ip { background: #f2f6fc; border-radius: 8px; padding: 5px 9px; }
+.node-ip-link { font-size: 12px !important; font-weight: 650 !important; color: #245b9e !important; }
+.node-ip-copy { width: 27px; height: 27px; border-radius: 8px; }
+.node-location { padding-left: 2px; }
+.node-status-wrapper { align-items: flex-end; gap: 5px; }
+.node-health-pill { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:10px; font-weight:700; white-space:nowrap; }
+.node-health-pill.health-online { color:#218842; background:rgba(52,199,89,.12); }
+.node-health-pill.health-warning { color:#a96500; background:rgba(255,159,10,.14); }
+.node-health-pill.health-offline { color:#d93630; background:rgba(255,69,58,.12); }
+.node-delay { font-size: 21px !important; font-weight: 750; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
+.node-delay.icmp-disabled { font-size: 11px !important; font-weight: 700; letter-spacing: .2px; }
+
+.node-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 10px 11px; border-radius: 12px; background: #f7f8fa; }
+.node-metric { min-width: 0; display:flex; flex-direction:column; gap:4px; }
+.node-metric-label { color: #8e8e93; font-size:10px; font-weight:600; }
+.node-metric-value { color:#242429; font-size:14px; font-weight:750; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.node-metric-value small { color:#8e8e93; font-size:10px; font-weight:500; }
+.node-trend-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:30px; }
+.node-trend-label { color:#8e8e93; font-size:10px; }
+.node-sparkline { width:116px; height:28px; overflow:visible; }
+.node-sparkline polyline { fill:none; stroke:#2584f4; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.node-sparkline .spark-fill { fill:rgba(0,122,255,.09); stroke:none; }
+.node-sparkline.is-warning polyline { stroke:#ff9f0a; }
+.node-sparkline.is-offline polyline { stroke:#ff453a; }
+.tcp-section-title { display:flex; align-items:center; justify-content:space-between; margin:2px 0 8px; color:#74747c; font-size:11px; font-weight:700; letter-spacing:.2px; }
+.tcp-ports-list { display:flex; flex-direction:column; gap:12px; margin-top:0; }
+.tcp-port-item { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:'ip state' 'time time'; align-items:center; gap:7px 8px; padding:7px 9px; border:0; border-radius:0; background:transparent; }
+.tcp-ip-pill { grid-area:ip; justify-self:start; background:#f1f6ff; color:#2468b4; padding:5px 9px; border-radius:7px; font-variant-numeric:tabular-nums; }
+.tcp-port-state { grid-area:state; padding:5px 9px; min-width:68px; justify-content:center; }
+.tcp-offline-time { grid-area:time; padding:2px 2px 0; color:#ff3b30 !important; font-size:10px; line-height:1.3; font-weight:700; }
+.node-bottom-row { border-top:1px solid rgba(60,60,67,.07); padding-top:10px; align-items:center; }
+.node-stats-group { color:#8e8e93; font-size:10px; }
+.node-last { font-weight:600; color:#6d6d75; }
+.node-actions-more { display:flex; align-items:center; gap:6px; }
+.node-collapse-btn { border:0; background:#f2f4f7; color:#69717d; border-radius:8px; height:28px; padding:0 9px; font-size:11px; cursor:pointer; }
+.node-card.is-collapsed .node-detail-content { display:none; }
+.node-card.is-collapsed { gap:10px; }
+.node-card.is-collapsed .node-bottom-row { border-top:0; padding-top:0; }
+.node-filter-bar { display:flex; gap:8px; align-items:center; margin:0 0 11px; flex-wrap:wrap; }
+.node-filter-input,.node-filter-select { height:34px; border:1px solid rgba(60,60,67,.10); background:#fff; border-radius:9px; padding:0 10px; color:#45454b; font-family:inherit; font-size:12px; font-weight:500; outline:none; }
+.node-filter-input { flex:1 1 180px; min-width:130px; }
+.node-filter-select { flex:0 0 auto; }
+.node-filter-input:focus,.node-filter-select:focus { border-color:rgba(0,122,255,.45); box-shadow:0 0 0 3px rgba(0,122,255,.08); }
+.node-card[hidden] { display:none !important; }
+.node-action-group { display:flex; gap:6px; }
+@media (min-width:1400px) { .node-cards-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:600px) {
+ .main-wrapper { padding-left:13px; padding-right:13px; }
+ .node-cards-grid { grid-template-columns:1fr; gap:11px; }
+ .node-card { padding:15px 14px 12px; }
+ .node-metrics { padding:9px; gap:5px; }
+ .node-metric-value { font-size:13px; }
+ .node-filter-bar { gap:6px; }
+ .node-filter-input { flex-basis:100%; }
+}
+@media (min-width: 768px) {
+ .node-action-group { opacity:.48; transition:opacity .18s ease; }
+ .node-card:hover .node-action-group, .node-card:focus-within .node-action-group { opacity:1; }
+}
+@media (prefers-reduced-motion: reduce) { .node-card { transition:none !important; } .node-card:hover { transform:none; } }
+
+/* 保留原文件已有的 IP 字号及复制按钮尺寸 */
+.node-ip, .node-ip .node-ip-link, .node-ip-link { font-size: 14px !important; }
+.node-ip-wrap { gap: 3px !important; }
+.node-ip { gap: 3px !important; }
+.node-ip-copy { width: 28px !important; height: 28px !important; margin-left: 0 !important; }
+.node-ip-copy svg { width: 18px !important; height: 18px !important; stroke-width: 1.9 !important; }
+
+/* 本次交互调整：默认折叠详情，管理模式显示编辑/删除与拖动排序 */
+.node-manage-toggle { height:32px; padding:0 15px; border:0; border-radius:999px; background:#e8f2ff; color:var(--ios-blue); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(0,122,255,.06); transition:background .18s ease, color .18s ease, box-shadow .18s ease; }
+.node-manage-toggle.active { background:var(--ios-blue); color:#fff; box-shadow:0 2px 8px rgba(0,122,255,.20); }
+.node-list-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.node-card.is-collapsed .node-detail-content { display:none !important; }
+.node-action-group { visibility:hidden !important; opacity:0 !important; pointer-events:none !important; }
+.node-cards-grid.sorting .node-action-group { visibility:visible !important; opacity:1 !important; pointer-events:auto !important; }
+.node-sort-handle { display:none !important; }
+.node-cards-grid.sorting .node-sort-handle { display:flex !important; }
+.node-cards-grid.sorting .node-card { padding-left:38px !important; }
+/* 详情按钮与管理模式下的删除按钮共用卡片右下角的最右侧位置 */
+.node-bottom-row { position:relative; align-items:flex-end !important; padding-right:0 !important; min-height:30px; box-sizing:border-box; }
+.node-actions-more { position:absolute; right:0; bottom:0; display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; }
+.node-collapse-btn { white-space:nowrap; flex-shrink:0; }
+/* 普通模式不让隐藏的编辑/删除按钮占位，详情按钮因此贴齐最右侧 */
+.node-actions-more > .node-action-group { display:none !important; }
+/* 管理模式：隐藏详情按钮，编辑/删除按钮组显示，删除按钮成为最右侧按钮 */
+.node-cards-grid.sorting .node-collapse-btn { display:none !important; }
+.node-cards-grid.sorting .node-actions-more > .node-action-group { display:flex !important; flex-shrink:0; }
+.node-sort-handle { left:5px; width:26px; height:34px; }
+ .node-card.dragging { opacity:.96 !important; transform:scale(1.015); box-shadow:0 14px 34px rgba(0,0,0,.18); cursor:grabbing; }
+.node-sort-placeholder { border:2px dashed rgba(0,122,255,.34); border-radius:var(--card-radius); background:rgba(0,122,255,.055); box-sizing:border-box; min-height:80px; }
+.node-sort-handle { cursor:grab; touch-action:none; -webkit-tap-highlight-color:transparent; }
+.node-sort-handle:active { cursor:grabbing; }
+.node-card:not(.dragging) { transition:transform 180ms cubic-bezier(.2,.8,.2,1); }
+
+/* 时间信息比原来更醒目，其他字体保持原样 */
+.node-stats-group, .node-last, .tcp-offline-time { font-size:12px !important; }
+.node-last { font-weight:600 !important; }
+
+/* 本次按用户要求：不改原字体/字号/排版，只移除卡片与端口细边框线 */
+.node-card, .node-card.card-online, .node-card.card-warning, .node-card.card-offline {
+  border: 0 !important;
+  border-left: 0 !important;
+  outline: 0 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
+}
+.node-card:hover { transform: none !important; }
+.node-bottom-row { border-top: 0 !important; }
+.tcp-port-item { border: 0 !important; border-radius: 0 !important; background: transparent !important; padding-left: 0 !important; padding-right: 0 !important; }
+.node-sort-btn, .node-sort-handle, .node-filter-bar, .node-metrics, .node-trend-row { display: none !important; }
+/* ===== 节点名称、延迟与状态气泡：放入同一标题行，避免错位 ===== */
+.node-top-row { align-items: flex-start !important; }
+.node-identity { min-width: 0; flex: 1 1 auto; width: 100%; }
+.node-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+.node-heading-row .node-name { flex: 1 1 auto; min-width: 0; }
+.node-heading-row .node-status-wrapper {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end;
+  gap: 8px !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.node-heading-row .node-health-pill,
+.node-heading-row .node-delay { flex-shrink: 0; }
+@media (max-width: 380px) {
+  .node-heading-row { gap: 5px; }
+  .node-heading-row .node-status-wrapper { gap: 5px !important; }
+  .node-heading-row .node-health-pill { padding: 3px 6px; }
+}
+</style>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/favicon.png">
+</head>
+<body>
+
+<div class="main-wrapper" id="main-content">
+  <button class="desktop-control-btn" type="button" onclick="toggleDrawer(true)">控制面板</button>
+  <div class="ios-large-header" onclick="if(window.innerWidth<992)toggleDrawer()" title="点击打开控制面板">
+    <div class="large-title">PingMonitor</div>
+    <div class="header-sub-row">
+      <span class="status-dot" id="header-dot"></span>
+      <span class="last-update-text" id="last-update">最后更新: --:--:--</span>
+    </div>
+  </div>
+
+  <div class="group-title">系统状态概览</div>
+  <div class="widget-grid">
+    <div class="widget-card"><div class="widget-lbl">总监控节点</div><div class="widget-val" id="stat-total">0</div></div>
+    <div class="widget-card"><div class="widget-lbl">在线节点</div><div class="widget-val" style="color: var(--ios-green);" id="stat-online">0</div></div>
+    <div class="widget-card"><div class="widget-lbl">异常节点</div><div class="widget-val" style="color: var(--ios-red);" id="stat-offline">0</div></div>
+    <div class="widget-card"><div class="widget-lbl">平均延迟</div><div class="widget-val" style="color: var(--ios-blue);" id="stat-delay">-- ms</div></div>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="main-section">
+      <div class="node-list-header">
+        <div class="group-title">监控节点列表</div>
+        <button id="node-manage-toggle" class="node-manage-toggle" type="button" onclick="toggleNodeManagement()" aria-pressed="false">节点管理</button>
+      </div>
+      <div id="nodes-container">
+        <div class="ios-card" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 14px;">正在加载节点...</div>
+      </div>
+    </div>
+
+    <div class="bottom-drawer closed" id="drawer">
+      <div class="drawer-header-area" id="drawer-header-area" onclick="toggleDrawer()">
+        <div class="drawer-header"><div class="drawer-pill"></div></div>
+        <div class="drawer-title-bar">
+          <div class="drawer-title">控制台与管理设置</div>
+        </div>
+      </div>
+      
+      <div class="drawer-content" id="drawer-content">
+        <div class="controls-sidebar">
+          <div>
+            <div class="group-title">账户</div>
+            <div class="ios-card" style="padding: 12px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button class="ios-btn ios-btn-secondary" type="button" onclick="togglePasswordForm()" id="change-password-toggle" style="height: 40px; font-size: 13px;">修改密码</button>
+                <button class="logout-btn" type="button" onclick="logout()" style="width: 100%; height: 40px; font-size: 13px;">退出登录</button>
+              </div>
+              <div id="password-form" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 0.5px solid var(--divider-color);">
+                <div style="font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px;">修改管理密码</div>
+                <div class="input-group" style="gap: 8px;">
+                  <input class="ios-input" id="current-password" type="password" autocomplete="current-password" placeholder="当前密码">
+                  <input class="ios-input" id="new-password" type="password" autocomplete="new-password" placeholder="新密码（至少 8 位）">
+                  <input class="ios-input" id="confirm-password" type="password" autocomplete="new-password" placeholder="再次输入新密码">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <button class="ios-btn" type="button" onclick="changePassword()" style="height: 40px; font-size: 13px;">保存新密码</button>
+                    <button class="ios-btn ios-btn-secondary" type="button" onclick="togglePasswordForm(false)" style="height: 40px; font-size: 13px;">取消</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="group-title">添加新监控节点</div>
+            <div class="ios-card">
+              <div class="input-group">
+                <input class="ios-input" id="name" placeholder="节点名称（例如: 香港服务器）">
+                <input class="ios-input" id="ip" placeholder="IP 地址或域名">
+                <div class="protocol-options">
+                  <label><input id="icmp-enabled" type="checkbox" checked> ICMP Ping</label>
+                  <span class="protocol-hint">TCPing 端口（多个端口用逗号分隔）</span>
+                </div>
+                <input class="ios-input" id="ports" placeholder="例如：22,80,443,8080">
+                <button class="ios-btn" onclick="addNode()">添加节点</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="group-title middle-title">推送与检测配置</div>
+            <div class="ios-card">
+              <div class="input-group">
+                <div>
+                  <div style="font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px;">Telegram Worker</div>
+                  <div style="display: flex; gap: 8px;">
+                    <input class="ios-input" id="worker" placeholder="https://your-worker.workers.dev">
+                    <button class="ios-btn ios-btn-secondary" style="width: 80px; flex-shrink: 0;" onclick="saveWorker()">保存</button>
+                  </div>
+                </div>
+                <div style="height: 0.5px; background: var(--divider-color);"></div>
+                <div>
+                  <div style="font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 6px;">检测频率 (秒)</div>
+                  <div style="display: flex; gap: 8px;">
+                    <input class="ios-input" id="interval" type="number" min="5" placeholder="60">
+                    <button class="ios-btn ios-btn-secondary" style="width: 80px; flex-shrink: 0;" onclick="saveInterval()">保存</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="group-title middle-title">服务控制</div>
+            <div class="ios-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+              <div style="padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 600;">后台运行状态</div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">运行时间: <span id="service-uptime" style="font-weight: 600; font-variant-numeric: tabular-nums;">--:--:--</span></div>
+                </div>
+                <span class="badge-status-pill badge-online" id="service-status-badge"><i class="dot"></i>检测中</span>
+              </div>
+              <div style="height: 0.5px; background: var(--divider-color);"></div>
+              <div style="padding: 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: auto;">
+                <button class="ios-btn" style="height: 40px; font-size: 13px;" onclick="service('start')">启动</button>
+                <button class="ios-btn ios-btn-danger" style="height: 40px; font-size: 13px;" onclick="service('stop')">停止</button>
+                <button class="ios-btn ios-btn-secondary" style="height: 40px; font-size: 13px;" onclick="service('restart')">重启</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="logs-section-wrapper">
+          <div class="group-title middle-title">实时系统日志</div>
+          <div class="terminal-card">
+            <div class="terminal-header">
+              <span class="terminal-title">CONSOLE LOGS</span>
+              <button class="terminal-clear-btn" onclick="clearLogs()">清空日志</button>
+            </div>
+            <div class="terminal-body" id="logs">加载日志中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+
+<div class="edit-modal-overlay" id="edit-modal-overlay" onclick="if(event.target===this)closeEditModal()">
+  <div class="edit-modal">
+    <div class="edit-modal-title">编辑监控节点</div>
+    <div class="edit-modal-field">
+      <label for="edit-name">节点名称</label>
+      <input class="ios-input" id="edit-name" autocomplete="off">
+    </div>
+    <div class="edit-modal-field">
+      <label for="edit-ip">IP 地址或域名</label>
+      <input class="ios-input" id="edit-ip" autocomplete="off">
+    </div>
+    <div class="edit-modal-field">
+      <label><input id="edit-icmp-enabled" type="checkbox"> 启用 ICMP Ping</label>
+    </div>
+    <div class="edit-modal-field">
+      <label for="edit-ports">TCPing 端口（多个端口用逗号分隔）</label>
+      <input class="ios-input" id="edit-ports" placeholder="例如：22,80,443,8080" autocomplete="off">
+    </div>
+    <div class="edit-modal-actions">
+      <button class="edit-cancel-btn" type="button" onclick="closeEditModal()">取消</button>
+      <button class="edit-save-btn" type="button" onclick="saveEditNode()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast">提示信息</div>
+
+<script>
+let lastRenderedHTML = "", lastLogsText = "";
+let lastConfigSignature = "";
+let lastNodesSnapshot = [];
+let refreshInFlight = false;
+let refreshSeq = 0;
+let logLinesCache = [];
+const MAX_LOG_LINES = 800;
+const $ = id => document.getElementById(id);
+function cssEscape(value) {
+    if (window.CSS && typeof CSS.escape === "function") return CSS.escape(String(value));
+    return String(value).replace(/[^a-zA-Z0-9_-]/g, ch => "\\" + ch);
+}
+
+function toggleLocation(el) {
+    el.classList.toggle("expanded");
+}
+
+function formatUptime(s) {
+    if (s < 0) s = 0;
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return (d > 0 ? d + "天 " : "") + [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function showToast(msg) {
+    const t = $("toast");
+    t.innerText = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => showToast(`已复制: ${text}`)).catch(() => fallbackCopy(text));
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;left:-9999px";
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); showToast(`已复制: ${text}`); } catch { showToast("复制失败"); }
+    document.body.removeChild(ta);
+}
+
+function togglePasswordForm(show) {
+    const form = $("password-form");
+    const shouldShow = show === undefined ? form.style.display === "none" : show;
+    form.style.display = shouldShow ? "block" : "none";
+    $("change-password-toggle").textContent = shouldShow ? "收起修改密码" : "修改密码";
+    if (!shouldShow) {
+        $("current-password").value = "";
+        $("new-password").value = "";
+        $("confirm-password").value = "";
+    } else {
+        setTimeout(() => $("current-password").focus(), 50);
+    }
+}
+
+async function changePassword() {
+    const currentPassword = $("current-password").value;
+    const newPassword = $("new-password").value;
+    const confirmPassword = $("confirm-password").value;
+
+    if (!currentPassword) { showToast("请输入当前密码"); return; }
+    if (newPassword.length < 8) { showToast("新密码至少 8 位"); return; }
+    if (newPassword !== confirmPassword) { showToast("两次输入的新密码不一致"); return; }
+
+    try {
+        const res = await fetch("/api/change-password", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword,
+                confirm_password: confirmPassword
+            }),
+            cache: "no-store"
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+            showToast("密码修改成功");
+            togglePasswordForm(false);
+            return;
+        }
+        if (res.status === 401) {
+            window.location.href = "/login";
+            return;
+        }
+        showToast(data.error || "密码修改失败");
+    } catch {
+        showToast("网络请求失败");
+    }
+}
+
+async function logout() {
+    try {
+        await fetch("/logout", {
+            method: "POST",
+            headers: { "Accept": "application/json" },
+            cache: "no-store"
+        });
+    } catch {}
+    window.location.href = "/login";
+}
+
+async function fetchJSON(url, options = {}) {
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), options.timeout || 10000);
+        const res = await fetch(url, {
+            cache: "no-store",
+            signal: controller.signal,
+            headers: { "Accept": "application/json" }
+        });
+        clearTimeout(timer);
+        if (res.status === 401) {
+            window.location.href = "/login";
+            return null;
+        }
+        return res.ok ? await res.json() : null;
+    } catch {
+        return null;
+    }
+}
+
+const ipLocationCache = {};
+const locationLoading = new Set();
+
+async function getIPLocation(ip) {
+    if (!ip) return "未知";
+    if (ipLocationCache[ip]) return ipLocationCache[ip];
+
+    try {
+        const data = await fetchJSON("/api/location/" + encodeURIComponent(ip), { timeout: 10000 });
+        const location = data && data.location ? String(data.location) : "未知";
+        if (location !== "未知") ipLocationCache[ip] = location;
+        return location;
+    } catch (e) {
+        return "查询失败";
+    }
+}
+
+async function refreshIPLocations(nodes) {
+    for (const n of nodes) {
+        const ip = n.ip;
+        const el = document.querySelector('.node-location[data-ip="' + cssEscape(ip) + '"]');
+        if (!el) continue;
+
+        if (ipLocationCache[ip]) {
+            el.innerText = ipLocationCache[ip];
+            el.title = ipLocationCache[ip];
+            continue;
+        }
+
+        if (locationLoading.has(ip)) continue;
+        locationLoading.add(ip);
+        el.innerText = "查询归属地...";
+
+        getIPLocation(ip).then(loc => {
+            const current = document.querySelector('.node-location[data-ip="' + cssEscape(ip) + '"]');
+            if (current) {
+                current.innerText = loc;
+                current.title = loc;
+            }
+        }).finally(() => locationLoading.delete(ip));
+    }
+}
+
+function nodeStatusData(node, statusMap, isRunning) {
+    const stored = statusMap[node.ip] || {};
+    const icmpEnabled = node.icmp_enabled !== false;
+    const icmp = stored.icmp || (stored.status ? { status: stored.status, delay: stored.delay, last: stored.last, fail: stored.fail } : {});
+    return {
+        name: node.name, ip: node.ip,
+        status: !icmpEnabled ? "未启用" : (isRunning ? (icmp.status || "检测中") : "等待检测"),
+        delay: !icmpEnabled ? "-" : (icmp.delay || "-"),
+        last: !icmpEnabled ? "-" : (icmp.last || "-"),
+        offline_since: icmp.offline_since || stored.offline_since || null,
+        fail: icmp.fail || 0,
+        tcp: isRunning ? (stored.tcp || {}) : {}
+    };
+}
+
+function getIPType(ip) {
+    try {
+        const value = String(ip || '').trim().replace(/^\[|\]$/g, '');
+        return value.includes(':') ? 'IPv6' : 'IPv4';
+    } catch { return 'IPv4'; }
+}
+
+function openITDog(ip) {
+    const value = String(ip || '').trim().replace(/^\[|\]$/g, '');
+    if (!value) return;
+    const isIPv6 = value.includes(':');
+    const base = isIPv6 ? 'https://www.itdog.cn/ping_ipv6/' : 'https://www.itdog.cn/ping/';
+    window.open(base + value, '_blank', 'noopener');
+}
+
+function openITDogTCP(ip, port) {
+    const value = String(ip || '').trim().replace(/^\[|\]$/g, '');
+    const p = Number(port);
+    if (!value || !Number.isInteger(p) || p < 1 || p > 65535) return;
+    const isIPv6 = value.includes(':');
+    const path = isIPv6 ? 'tcping_ipv6' : 'tcping';
+    const target = isIPv6 ? '[' + value + ']:' + p : value + ':' + p;
+    window.open('https://www.itdog.cn/' + path + '/' + encodeURIComponent(target), '_blank', 'noopener');
+}
+
+function buildNodeStructure(nodes, isRunning) {
+    const html = nodes.map(n => `
+        <div class="node-card is-collapsed" data-ip="${escapeHtml(n.ip)}" data-name="${escapeHtml(n.name || '')}" draggable="false">
+          <button class="node-sort-handle" type="button" draggable="false" title="拖动调整节点顺序" aria-label="拖动调整节点顺序"><span></span><span></span><span></span></button>
+          <div class="node-top-row">
+            <div class="node-identity">
+              <div class="node-heading-row">
+                <span class="node-name" title="${escapeHtml(n.name || '未命名')}"><i class="node-status-dot badge-checking node-status"></i>${escapeHtml(n.name || '未命名')}</span>
+                <div class="node-status-wrapper"><span class="node-health-pill health-checking">检测中</span><span class="delay-text node-delay">-</span></div>
+              </div>
+              <div class="node-sub-info">
+                <div class="node-ip-wrap">
+                  <span class="ip-type-badge ${getIPType(n.ip) === 'IPv6' ? 'ip-type-v6' : 'ip-type-v4'}">${getIPType(n.ip)}</span>
+                  <span class="node-ip"><button class="node-ip-link" type="button" title="点击跳转 ITDOG 检测" onclick="openITDog('${escapeHtml(n.ip)}')">${escapeHtml(n.ip)}</button></span>
+                  <button class="node-ip-copy" type="button" title="复制 IP" aria-label="复制 IP" onclick="copyText('${escapeHtml(n.ip)}')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"></path></svg></button>
+                </div>
+                <span class="node-location" data-ip="${escapeHtml(n.ip)}" onclick="toggleLocation(this)">查询归属地...</span>
+              </div>
+            </div>
+          </div>
+          <div class="node-detail-content">
+            ${Array.isArray(n.ports) && n.ports.length ? `<div class="tcp-section-title"><span>TCPing 端口检测</span><span>${n.ports.length} 个端口</span></div><div class="tcp-ports-list">${n.ports.map(port => { const tcpTarget = getIPType(n.ip) === 'IPv6' ? `[${n.ip.replace(/^\[|\]$/g, '')}]:${Number(port)}` : `${n.ip}:${Number(port)}`; return `<span class="tcp-port-item" data-port="${Number(port)}"><button class="tcp-ip-pill" type="button" title="点击跳转 ITDOG TCPing" onclick="openITDogTCP('${escapeHtml(n.ip)}',${Number(port)})">${escapeHtml(tcpTarget)}</button><span class="tcp-port-state badge-checking">检测中</span><small class="tcp-offline-time" hidden></small></span>`; }).join('')}</div>` : '<div class="tcp-section-title"><span>TCPing</span><span>未配置端口</span></div>'}
+          </div>
+          <div class="node-bottom-row">
+            <div class="node-stats-group"><span><span class="node-time-label">最后检测:</span> <strong class="stat-val node-last">-</strong></span><span class="fail-tag node-fail" hidden></span></div>
+            <div class="node-actions-more"><button class="node-collapse-btn" type="button" onclick="toggleNodeCollapse(this)">展开详情</button><div class="node-action-group"><button class="action-btn-sm edit-btn" onclick="openEditModal('${escapeHtml(n.ip)}')">编辑</button><button class="action-btn-sm del-btn" onclick="delNode('${escapeHtml(n.ip)}')">删除</button></div></div>
+          </div>
+        </div>`).join('');
+    return '<div class="node-cards-grid">' + html + '</div>';
+}
+
+function toggleNodeCollapse(btn) {
+    const card = btn.closest('.node-card');
+    if (!card) return;
+    card.classList.toggle('is-collapsed');
+    btn.textContent = card.classList.contains('is-collapsed') ? '展开详情' : '收起详情';
+}
+
+function updateNodeCard(card, item) {
+    if (!card) return;
+    const statusEl = card.querySelector('.node-status');
+    const delayEl = card.querySelector('.node-delay');
+    const lastEl = card.querySelector('.node-last');
+    const failEl = card.querySelector('.node-fail');
+    const status = item.status || "检测中";
+    const numDelay = parseInt(item.delay);
+    const badgeCls = status === "在线" ? "badge-online" : (status === "离线" ? "badge-offline" : "badge-checking");
+    const delayCls = !isNaN(numDelay) ? (numDelay < 150 ? 'delay-good' : (numDelay < 400 ? 'delay-medium' : 'delay-bad')) : "";
+    const failCount = parseInt(item.fail) || 0;
+    const tcpStates = Object.values(item.tcp || {});
+    const tcpOnline = tcpStates.filter(x => x && x.status === '在线').length;
+    const tcpOffline = tcpStates.filter(x => x && x.status === '离线').length;
+    const health = status === '离线' ? 'offline' : ((status === '在线' && tcpOffline > 0) ? 'warning' : (status === '在线' ? 'online' : 'warning'));
+    card.dataset.health = health;
+    card.dataset.delay = Number.parseFloat(item.delay) || '';
+    card.classList.toggle('card-online', health === 'online');
+    card.classList.toggle('card-warning', health === 'warning');
+    card.classList.toggle('card-offline', health === 'offline');
+    const healthPill = card.querySelector('.node-health-pill');
+    if (healthPill) { healthPill.className = `node-health-pill health-${health}`; healthPill.textContent = health === 'online' ? '正常' : (health === 'offline' ? '离线' : '部分异常'); }
+    if (statusEl) statusEl.className = "node-status-dot node-status " + (status === "未启用" ? "badge-checking" : badgeCls);
+    if (delayEl) {
+        delayEl.className = "delay-text node-delay " + (status === "未启用" ? "icmp-disabled" : delayCls);
+        delayEl.innerText = status === "未启用" ? "ICMP 未启用" : String(item.delay ?? "-");
+    }
+    const timeLabel = card.querySelector('.node-time-label');
+    if (lastEl) lastEl.innerText = String(item.status === "离线" ? (item.offline_since || item.last || "-") : (item.last ?? "-"));
+    if (timeLabel) timeLabel.innerText = item.status === "离线" ? "离线时间:" : "最后检测:";
+    if (failEl) {
+        failEl.hidden = failCount <= 0;
+        failEl.innerText = failCount > 0 ? `连续失败: ${failCount}次` : "";
+    }
+    card.querySelectorAll('.tcp-port-item').forEach(row => {
+        const port = row.dataset.port;
+        const state = (item.tcp || {})[port] || {};
+        const stateEl = row.querySelector('.tcp-port-state');
+        if (!stateEl) return;
+        const tcpStatus = state.status || "检测中";
+        stateEl.className = 'tcp-port-state ' + (tcpStatus === '在线' ? 'badge-online' : (tcpStatus === '离线' ? 'badge-offline' : 'badge-checking'));
+        stateEl.textContent = tcpStatus === '在线' ? (state.delay || '在线') : tcpStatus;
+        const offlineEl = row.querySelector('.tcp-offline-time');
+        if (offlineEl) {
+            offlineEl.hidden = tcpStatus !== '离线' || !state.offline_since;
+            offlineEl.textContent = tcpStatus === '离线' && state.offline_since ? `离线时间: ${state.offline_since}` : '';
+        }
+        if (state.stopped) stateEl.title = `已确认离线，停止该端口检测`;
+        else stateEl.removeAttribute('title');
+    });
+}
+
+const NODE_ORDER_KEY = "pingmonitor-node-order-v1";
+let nodeManagementEnabled = false;
+let draggedNodeCard = null;
+let dragPlaceholder = null;
+let dragPointerOffsetX = 0;
+let dragPointerOffsetY = 0;
+let dragRaf = 0;
+let activeSortPointerId = null;
+
+function getOrderedNodes(nodes) {
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(NODE_ORDER_KEY) || "[]"); } catch (_) { saved = []; }
+    if (!Array.isArray(saved) || !saved.length) return nodes;
+    const rank = new Map(saved.map((ip, index) => [String(ip), index]));
+    return [...nodes].sort((a, b) => {
+        const ai = rank.has(String(a.ip)) ? rank.get(String(a.ip)) : Number.MAX_SAFE_INTEGER;
+        const bi = rank.has(String(b.ip)) ? rank.get(String(b.ip)) : Number.MAX_SAFE_INTEGER;
+        return ai - bi;
+    });
+}
+
+function toggleNodeManagement(force) {
+    nodeManagementEnabled = typeof force === "boolean" ? force : !nodeManagementEnabled;
+    const grid = document.querySelector(".node-cards-grid");
+    const btn = $("node-manage-toggle");
+    if (grid) grid.classList.toggle("sorting", nodeManagementEnabled);
+    if (btn) {
+        btn.classList.toggle("active", nodeManagementEnabled);
+        btn.setAttribute("aria-pressed", String(nodeManagementEnabled));
+        btn.textContent = nodeManagementEnabled ? "完成管理" : "节点管理";
+    }
+}
+
+function enableNodeCardSorting() {
+    const container = $("nodes-container");
+    if (!container || container.dataset.sortBound === "1") return;
+    container.dataset.sortBound = "1";
+
+    // Pointer sorting replaces native HTML5 drag-and-drop: it is smoother on
+    // touch screens, avoids the browser's drag ghost, and animates card swaps.
+    container.addEventListener("pointerdown", event => {
+        const handle = event.target.closest(".node-sort-handle");
+        if (!nodeManagementEnabled || !handle || event.button !== 0) return;
+        const card = handle.closest(".node-card");
+        const grid = card && card.parentElement;
+        if (!card || !grid) return;
+        event.preventDefault();
+        draggedNodeCard = card;
+        activeSortPointerId = event.pointerId;
+        const rect = card.getBoundingClientRect();
+        dragPointerOffsetX = event.clientX - rect.left;
+        dragPointerOffsetY = event.clientY - rect.top;
+        dragPlaceholder = document.createElement("div");
+        dragPlaceholder.className = "node-sort-placeholder";
+        dragPlaceholder.style.width = rect.width + "px";
+        dragPlaceholder.style.height = rect.height + "px";
+        card.parentNode.insertBefore(dragPlaceholder, card);
+        card.classList.add("dragging");
+        card.style.width = rect.width + "px";
+        card.style.height = rect.height + "px";
+        card.style.left = (rect.left) + "px";
+        card.style.top = (rect.top) + "px";
+        card.style.position = "fixed";
+        card.style.margin = "0";
+        card.style.zIndex = "9999";
+        card.style.pointerEvents = "none";
+        card.style.transition = "none";
+        handle.setPointerCapture(event.pointerId);
+    });
+
+    container.addEventListener("pointermove", event => {
+        if (!draggedNodeCard || event.pointerId !== activeSortPointerId) return;
+        event.preventDefault();
+        if (dragRaf) cancelAnimationFrame(dragRaf);
+        dragRaf = requestAnimationFrame(() => {
+            if (!draggedNodeCard) return;
+            draggedNodeCard.style.left = (event.clientX - dragPointerOffsetX) + "px";
+            draggedNodeCard.style.top = (event.clientY - dragPointerOffsetY) + "px";
+            const grid = dragPlaceholder && dragPlaceholder.parentElement;
+            if (!grid) return;
+            const cards = [...grid.querySelectorAll(":scope > .node-card:not(.dragging)")];
+            let nearest = null;
+            let nearestDistance = Infinity;
+            for (const candidate of cards) {
+                const r = candidate.getBoundingClientRect();
+                const cx = r.left + r.width / 2;
+                const cy = r.top + r.height / 2;
+                const distance = Math.pow(event.clientX - cx, 2) + Math.pow(event.clientY - cy, 2);
+                if (distance < nearestDistance) { nearestDistance = distance; nearest = candidate; }
+            }
+            if (!nearest) return;
+            const beforeRects = new Map(cards.map(card => [card, card.getBoundingClientRect()]));
+            const r = nearest.getBoundingClientRect();
+            const before = (event.clientY < r.top + r.height / 2) ||
+                (event.clientY <= r.bottom && event.clientX < r.left + r.width / 2);
+            grid.insertBefore(dragPlaceholder, before ? nearest : nearest.nextSibling);
+            // FLIP animation keeps the remaining cards gliding into their new slots.
+            for (const card of cards) {
+                const first = beforeRects.get(card);
+                const last = card.getBoundingClientRect();
+                const dx = first.left - last.left;
+                const dy = first.top - last.top;
+                if (dx || dy) {
+                    card.style.transition = "none";
+                    card.style.transform = `translate(${dx}px, ${dy}px)`;
+                    requestAnimationFrame(() => {
+                        card.style.transition = "transform 180ms cubic-bezier(.2,.8,.2,1)";
+                        card.style.transform = "";
+                    });
+                }
+            }
+        });
+    }, { passive: false });
+
+    const finishDrag = event => {
+        if (!draggedNodeCard || (event && event.pointerId !== undefined && event.pointerId !== activeSortPointerId)) return;
+        const card = draggedNodeCard;
+        if (dragPlaceholder && dragPlaceholder.parentNode) {
+            dragPlaceholder.parentNode.insertBefore(card, dragPlaceholder);
+            dragPlaceholder.remove();
+        }
+        card.classList.remove("dragging");
+        ["position", "left", "top", "width", "height", "margin", "zIndex", "pointerEvents", "transition", "transform"].forEach(prop => card.style[prop] = "");
+        draggedNodeCard = null;
+        dragPlaceholder = null;
+        activeSortPointerId = null;
+        if (dragRaf) cancelAnimationFrame(dragRaf);
+        dragRaf = 0;
+        saveNodeCardOrder();
+    };
+    container.addEventListener("pointerup", finishDrag);
+    container.addEventListener("pointercancel", finishDrag);
+    window.addEventListener("blur", () => finishDrag());
+}
+function saveNodeCardOrder() {
+    const grid = document.querySelector(".node-cards-grid");
+    if (!grid) return;
+    const order = [...grid.querySelectorAll(":scope > .node-card")].map(card => card.dataset.ip).filter(Boolean);
+    try { localStorage.setItem(NODE_ORDER_KEY, JSON.stringify(order)); } catch (_) {}
+}
+
+function renderNodeStructureIfNeeded(nodes, isRunning) {
+    nodes = getOrderedNodes(nodes);
+    const signature = JSON.stringify({
+        nodes: nodes.map(n => ({ name: n.name || "", ip: n.ip || "", icmp_enabled: n.icmp_enabled !== false, ports: n.ports || [] })),
+        running: !!isRunning,
+    });
+    if (signature === lastConfigSignature) return;
+
+    const container = $("nodes-container");
+    if (!nodes.length) {
+        container.innerHTML = '<div class="ios-card" style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 14px;"><span class="empty-pc">暂无监控节点，请在右侧添加</span><span class="empty-mobile">暂无监控节点，点击标题打开控制台添加</span></div>';
+        lastRenderedHTML = "";
+    } else {
+        const finalHTML = buildNodeStructure(nodes, isRunning);
+        container.innerHTML = finalHTML;
+        lastRenderedHTML = finalHTML;
+    }
+    lastConfigSignature = signature;
+    lastNodesSnapshot = nodes.map(n => ({...n}));
+    enableNodeCardSorting();
+    toggleNodeManagement(nodeManagementEnabled);
+}
+
+function updateNodeCards(nodes, status, isRunning) {
+    const statusMap = {};
+    (status || []).forEach(n => statusMap[n.ip] = n);
+    let totalOnline = 0, totalOffline = 0, totalDelay = 0, delayCount = 0;
+
+    nodes.forEach(n => {
+        const item = nodeStatusData(n, statusMap, isRunning);
+        if (n.icmp_enabled !== false && item.status === "在线") totalOnline++;
+        if (n.icmp_enabled !== false && item.status === "离线") totalOffline++;
+        const numDelay = parseInt(item.delay);
+        if (!isNaN(numDelay)) { totalDelay += numDelay; delayCount++; }
+        const card = document.querySelector('.node-card[data-ip="' + cssEscape(n.ip) + '"]');
+        updateNodeCard(card, item);
+    });
+
+    $("stat-total").innerText = nodes.length;
+    $("stat-online").innerText = totalOnline;
+    $("stat-offline").innerText = totalOffline;
+    $("stat-delay").innerText = delayCount > 0 ? Math.round(totalDelay / delayCount) + " ms" : "-- ms";
+}
+
+async function refreshDashboard(isInitial = false) {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
+    const seq = ++refreshSeq;
+    try {
+        const [config, status, sysData, logsData] = await Promise.all([
+            fetchJSON("/api/config"), fetchJSON("/api/status"), fetchJSON("/api/system"), fetchJSON("/api/logs")
+        ]);
+        if (seq !== refreshSeq) return;
+
+        if (sysData) {
+            const badge = $("service-status-badge"), uptimeEl = $("service-uptime"), dot = $("header-dot");
+            if (sysData.running) {
+                badge.className = "badge-status-pill badge-online";
+                badge.innerHTML = '<i class="dot"></i>运行中';
+                uptimeEl.style.color = "var(--text-main)";
+                uptimeEl.innerText = formatUptime(sysData.uptime);
+                if (dot) dot.style.backgroundColor = "var(--ios-green)";
+            } else {
+                badge.className = "badge-status-pill badge-offline";
+                badge.innerHTML = '<i class="dot"></i>已停止';
+                uptimeEl.innerText = "已停止";
+                uptimeEl.style.color = "var(--text-muted)";
+                if (dot) dot.style.backgroundColor = "var(--ios-red)";
+            }
+        }
+
+        if (config) {
+            const wIn = $("worker"), iIn = $("interval");
+            if (isInitial || document.activeElement !== wIn) wIn.value = config.worker || "";
+            if (isInitial || document.activeElement !== iIn) iIn.value = config.interval || 60;
+
+            const isRunning = !!(sysData && sysData.running);
+            const nodes = config.nodes || [];
+            renderNodeStructureIfNeeded(nodes, isRunning);
+            updateNodeCards(nodes, status, isRunning);
+            refreshIPLocations(nodes);
+            $("last-update").innerText = "最后更新: " + new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        }
+
+        if (logsData) updateLogs(logsData);
+    } finally {
+        refreshInFlight = false;
+    }
+}
+
+function updateLogs(logsData) {
+    const box = $("logs");
+    const lines = Array.isArray(logsData) ? logsData : [];
+    const trimmed = lines.slice(-MAX_LOG_LINES);
+    const logsStr = trimmed.join("\n");
+    if (logsStr === lastLogsText) return;
+    lastLogsText = logsStr;
+    logLinesCache = trimmed;
+
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    if (!trimmed.length) {
+        box.innerText = "暂无日志或日志已被清空。";
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    trimmed.forEach((line, index) => {
+        if (index) fragment.appendChild(document.createElement("br"));
+        fragment.appendChild(document.createTextNode(String(line)));
+    });
+    box.replaceChildren(fragment);
+    if (nearBottom || box.scrollHeight <= box.clientHeight) box.scrollTop = box.scrollHeight;
+}
+
+async function apiPost(url, data, successMsg) {
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && (json.ok !== false)) {
+            if (successMsg) showToast(successMsg);
+            await refreshDashboard();
+            return json;
+        } else {
+            showToast(json.error || "操作失败");
+            return null;
+        }
+    } catch {
+        showToast("网络请求失败");
+        return null;
+    }
+}
+
+async function addNode(){
+    const name = $("name").value.trim();
+    const ip = $("ip").value.trim();
+    const ports = $("ports").value.trim();
+    const icmp_enabled = $("icmp-enabled").checked;
+
+    if (!ip) {
+        showToast("请输入有效的 IP 地址或域名");
+        return;
+    }
+
+    // 将 TCP 端口和 ICMP 开关一并提交；旧代码只提交 name、ip，
+    // 导致填写的 TCP 端口没有写入 config.json，后台不会执行 TCPing。
+    const result = await apiPost(
+        "/api/add",
+        { name, ip, ports, icmp_enabled },
+        "节点添加成功"
+    );
+
+    if (result) {
+        $("name").value = "";
+        $("ip").value = "";
+        $("ports").value = "";
+        $("icmp-enabled").checked = true;
+        await refreshDashboard();
+    }
+}
+
+async function delNode(ip){
+    if (confirm(`确定要删除节点 [${ip}] 吗？`)) {
+        await apiPost("/api/delete", { ip }, "节点已删除");
+    }
+}
+
+async function saveWorker(){
+    await apiPost("/api/worker", { worker: $("worker").value.trim() }, "Telegram Worker 已保存");
+}
+
+async function saveInterval(){
+    const interval = $("interval").value;
+    if (!interval || interval < 5) { showToast("间隔时间不能小于 5 秒"); return; }
+    await apiPost("/api/interval", { interval }, "检测间隔已更新");
+}
+
+async function service(a){
+    const actionMap = { start: '启动', stop: '停止', restart: '重启' };
+    try {
+        const res = await fetch("/api/service/" + a);
+        const json = await res.json();
+        if (json.ok) {
+            showToast(`服务${actionMap[a] || a}指令已发送`);
+            setTimeout(refreshDashboard, 500);
+        } else {
+            showToast(`指令发送失败: ${json.error || '未知错误'}`);
+        }
+    } catch {
+        showToast("指令发送失败");
+    }
+}
+
+async function clearLogs(){
+    if (!confirm("确定要清空系统终端日志吗？")) return;
+    try {
+        const res = await fetch("/api/logs/clear", { method: "POST" });
+        const json = await res.json();
+        if (json.ok) {
+            lastLogsText = "";
+            await refreshDashboard();
+            showToast("系统终端日志已清空");
+        } else {
+            showToast(`清空日志失败: ${json.error || '未知错误'}`);
+        }
+    } catch {
+        showToast("清空日志失败");
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+let editingOriginalIP = "";
+
+async function openEditModal(ip) {
+    const config = await fetchJSON("/api/config");
+    const node = config && (config.nodes || []).find(n => n.ip === ip);
+    if (!node) { showToast("未找到该节点"); return; }
+    editingOriginalIP = ip;
+    $("edit-name").value = node.name || "";
+    $("edit-ip").value = node.ip || "";
+    $("edit-icmp-enabled").checked = node.icmp_enabled !== false;
+    $("edit-ports").value = Array.isArray(node.ports) ? node.ports.join(",") : (node.ports || "");
+    $("edit-modal-overlay").classList.add("open");
+    setTimeout(() => $("edit-name").focus(), 50);
+}
+
+function closeEditModal() {
+    editingOriginalIP = "";
+    $("edit-modal-overlay").classList.remove("open");
+}
+
+async function saveEditNode() {
+    const name = $("edit-name").value.trim();
+    const ip = $("edit-ip").value.trim();
+    if (!ip) { showToast("请输入有效的 IP 地址或域名"); return; }
+    if (!editingOriginalIP) { closeEditModal(); return; }
+
+    const ports = $("edit-ports").value.trim();
+    const icmp_enabled = $("edit-icmp-enabled").checked;
+    const result = await apiPost("/api/edit", { old_ip: editingOriginalIP, name, ip, ports, icmp_enabled }, "节点信息已更新");
+    if (result) {
+        delete ipLocationCache[editingOriginalIP];
+        delete ipLocationCache[ip];
+        closeEditModal();
+    }
+}
+
+const drawer = $("drawer"), overlay = $("drawer-overlay"), headerArea = $("drawer-header-area"), drawerContent = $("drawer-content");
+let isExpanded = false, startY = 0, currentY = 0, isDragging = false, isPullFromContent = false, maxTranslate = 0, rafId = null;
+
+function isMobile() { return window.innerWidth < 992; }
+
+function toggleDrawer(expand, fromPopState = false) {
+    if (!isMobile()) {
+        isExpanded = expand !== undefined ? expand : !isExpanded;
+        drawer.classList.toggle("open", isExpanded);
+        drawer.classList.toggle("closed", !isExpanded);
+        overlay.classList.toggle("open", isExpanded);
+        document.body.classList.toggle("drawer-open", isExpanded);
+        return;
+    }
+    isExpanded = expand !== undefined ? expand : !isExpanded;
+    drawer.style.transform = ""; overlay.style.opacity = ""; drawer.classList.remove("dragging");
+    
+    if (isExpanded) {
+        drawer.classList.add("open"); drawer.classList.remove("closed"); overlay.classList.add("open");
+        document.body.classList.add("drawer-open");
+        if (!fromPopState) { try { history.pushState({ drawerOpen: true }, ""); } catch(e) {} }
+    } else {
+        drawer.classList.add("closed"); drawer.classList.remove("open"); overlay.classList.remove("open");
+        document.body.classList.remove("drawer-open");
+        if (!fromPopState && history.state && history.state.drawerOpen) { try { history.back(); } catch(e) {} }
+    }
+}
+
+window.addEventListener("popstate", () => {
+    if (isMobile() && isExpanded) toggleDrawer(false, true);
+});
+
+function onTouchStart(e, fromContent = false) {
+    if (!isMobile()) return;
+    if (fromContent && (drawerContent.scrollTop > 0 || !isExpanded)) return;
+    startY = e.touches[0].clientY; currentY = startY; isDragging = true; isPullFromContent = fromContent;
+    maxTranslate = drawer.offsetHeight - 64; drawer.classList.add("dragging");
+}
+
+function onTouchMove(e) {
+    if (!isDragging || !isMobile()) return;
+    currentY = e.touches[0].clientY;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(() => {
+        const deltaY = currentY - startY;
+        let currentTranslate = 0;
+        if (isPullFromContent) {
+            if (deltaY > 0 && drawerContent.scrollTop <= 0) {
+                if (e.cancelable) e.preventDefault();
+                currentTranslate = deltaY;
+            } else { isDragging = false; return; }
+        } else {
+            if (e.cancelable) e.preventDefault();
+            currentTranslate = !isExpanded ? Math.max(0, maxTranslate + deltaY) : Math.max(0, deltaY);
+        }
+        drawer.style.transform = `translate3d(0, ${currentTranslate}px, 0)`;
+        const progress = Math.max(0, Math.min(1, 1 - (currentTranslate / maxTranslate)));
+        overlay.style.opacity = progress;
+        if (progress > 0) overlay.classList.add("open");
+    });
+}
+
+function onTouchEnd() {
+    if (!isDragging || !isMobile()) return;
+    isDragging = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    const deltaY = currentY - startY;
+    toggleDrawer(!isExpanded ? deltaY < -40 : deltaY <= 50);
+    startY = 0; currentY = 0; isPullFromContent = false;
+}
+
+headerArea.addEventListener("touchstart", e => onTouchStart(e, false), { passive: true });
+headerArea.addEventListener("touchmove", onTouchMove, { passive: false });
+headerArea.addEventListener("touchend", onTouchEnd);
+
+drawerContent.addEventListener("touchstart", e => onTouchStart(e, true), { passive: true });
+drawerContent.addEventListener("touchmove", onTouchMove, { passive: false });
+drawerContent.addEventListener("touchend", onTouchEnd);
+
+
+/* ===== 控制面板：点击其他区域自动关闭 ===== */
+function closeDrawerByOutsideClick(e) {
+    if (!isExpanded) return;
+    if (!isMobile()) return;
+
+    const target = e.target;
+
+    // 控制面板自身、控制面板头部、遮罩层内部点击不重复处理
+    if (drawer.contains(target)) return;
+
+    // 点击控制面板之外的页面内容：关闭
+    toggleDrawer(false);
+}
+
+document.addEventListener("click", closeDrawerByOutsideClick, true);
+
+// PC 端也支持：控制面板打开后，点击页面其他位置关闭。
+// 不影响控制面板内部按钮操作。
+document.addEventListener("mousedown", (e) => {
+    if (!isExpanded || isMobile()) return;
+    if (drawer.contains(e.target)) return;
+    toggleDrawer(false);
+}, true);
+
+// 打开控制面板后，按 ESC 关闭
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isExpanded) {
+        toggleDrawer(false);
+    }
+});
+
+window.addEventListener('resize', () => {
+    drawer.style.transform = ""; overlay.style.opacity = ""; drawer.classList.remove("dragging");
+    if (!isMobile()) {
+        drawer.classList.toggle("open", isExpanded);
+        drawer.classList.toggle("closed", !isExpanded);
+        overlay.classList.toggle("open", isExpanded);
+        document.body.classList.toggle("drawer-open", isExpanded);
+    } else {
+        drawer.classList.toggle("open", isExpanded); drawer.classList.toggle("closed", !isExpanded); overlay.classList.toggle("open", isExpanded);
+        if (isExpanded) document.body.classList.add("drawer-open");
+    }
+});
+
+refreshDashboard(true);
+
+function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(() => {
+        if (!document.hidden) refreshDashboard();
+    }, 5000);
+}
+
+function stopPolling() {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+}
+
+let pollTimer = null;
+startPolling();
+
+document.addEventListener("visibilitychange", () => {
+    stopPolling();
+    if (!document.hidden) {
+        refreshDashboard();
+        startPolling();
+    }
+});
+</script>
+</body>
+</html>
+
