@@ -1,0 +1,5 @@
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl start tcpingmonitor
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl stop tcpingmonitor
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart tcpingmonitor
+www-data ALL=(ALL) NOPASSWD: /usr/bin/truncate, /bin/truncate
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chmod, /bin/chmod
