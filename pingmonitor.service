@@ -1,13 +1,13 @@
 [Unit]
-Description=PingMonitor Service
+Description=tcpingmonitor Service
 After=network.target
 
 
 [Service]
 
-WorkingDirectory=/opt/pingmonitor
+WorkingDirectory=/opt/tcpingmonitor
 
-ExecStart=/usr/bin/python3 /opt/pingmonitor/monitor.py
+ExecStart=/usr/bin/python3 /opt/tcpingmonitor/monitor.py
 
 Restart=always
 
