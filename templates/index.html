@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#f2f2f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>阿里云杭州</title>
+<title>tcpingmonitor</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -733,7 +733,7 @@
 }
 
 
-/* ===== 阿里云杭州 2.0 · 卡片与交互优化 ===== */
+/* ===== tcpingmonitor 2.0 · 卡片与交互优化 ===== */
 :root { --card-radius: 17px; --card-shadow: 0 5px 20px rgba(20,35,60,.045); }
 .node-cards-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 15px; align-items: start; }
 .node-card { padding: 18px 19px 14px; gap: 13px; border: 1px solid rgba(60,60,67,.09); border-radius: 17px; box-shadow: var(--card-shadow); min-width: 0; }
@@ -953,7 +953,7 @@
 <div class="main-wrapper" id="main-content">
   <button class="desktop-control-btn" type="button" onclick="toggleDrawer(true)">控制面板</button>
   <div class="ios-large-header" onclick="if(window.innerWidth<992)toggleDrawer()" title="点击打开控制面板">
-    <div class="large-title">阿里云杭州</div>
+    <div class="large-title">tcpingmonitor</div>
     <div class="header-sub-row">
       <span class="status-dot" id="header-dot"></span>
       <span class="last-update-text" id="last-update">最后更新: --:--:--</span>
@@ -1525,7 +1525,7 @@ function updateNodeCard(card, item) {
     });
 }
 
-const NODE_ORDER_KEY = "阿里云杭州-node-order-v1";
+const NODE_ORDER_KEY = "tcpingmonitor-node-order-v1";
 let nodeManagementEnabled = false;
 let draggedNodeCard = null;
 let dragPlaceholder = null;
