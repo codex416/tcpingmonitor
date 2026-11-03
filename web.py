@@ -13,6 +13,8 @@ import ipaddress
 import threading
 import secrets
 import hashlib
+import fcntl
+from contextlib import contextmanager
 from functools import wraps
 from urllib.request import Request, urlopen
 from urllib.parse import quote
@@ -25,6 +27,10 @@ BASE_DIR = "/opt/tcpingmonitor"
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 LOG_FILE = os.path.join(BASE_DIR, "logs", "monitor.log")
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
+TARGET_EPOCH_FILE = os.path.join(BASE_DIR, "target_epochs.json")
+CONTROL_LOCK_FILE = os.path.join(BASE_DIR, "config_control.lock")
+MONITOR_CONTROL_HOST = "127.0.0.1"
+MONITOR_CONTROL_PORT = 49381
 LAST_ACTION_FILE = os.path.join(BASE_DIR, "last_action.json")
 IP_CACHE_FILE = os.path.join(BASE_DIR, "ip_cache.json")
 IP_CACHE_LOCK = threading.Lock()
@@ -194,6 +200,76 @@ def save_json_atomic(filepath, data):
         raise e
 
 
+
+
+
+@contextmanager
+def config_control_lock():
+    os.makedirs(BASE_DIR, exist_ok=True)
+    with open(CONTROL_LOCK_FILE, "a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def notify_monitor_targets(targets):
+    """发送即时启动命令，并等待监控进程确认已接收且已创建/确认检测线程。"""
+    clean_targets = []
+    for ip, protocol, port in targets:
+        item = {"ip": str(ip), "protocol": str(protocol).upper()}
+        if item["protocol"] == "TCP":
+            item["port"] = int(port)
+        clean_targets.append(item)
+    if not clean_targets:
+        return True
+
+    payload = json.dumps({"action": "start_targets", "targets": clean_targets}).encode("utf-8")
+    last_error = "监控进程未确认启动"
+    # 监控服务刚启动时，控制端口可能尚未完成 bind；短暂重试，避免命令丢失。
+    for attempt in range(5):
+        try:
+            with socket.create_connection((MONITOR_CONTROL_HOST, MONITOR_CONTROL_PORT), timeout=2.0) as conn:
+                conn.settimeout(3.0)
+                conn.sendall(payload)
+                conn.shutdown(socket.SHUT_WR)
+                chunks = []
+                while True:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                    if sum(map(len, chunks)) > 16384:
+                        raise ValueError("监控进程确认数据过大")
+                response = json.loads(b"".join(chunks).decode("utf-8"))
+                if response.get("ok") and response.get("accepted", 0) == len(clean_targets):
+                    return True
+                last_error = response.get("error") or (
+                    f"仅确认 {response.get('accepted', 0)}/{len(clean_targets)} 个目标"
+                )
+        except (OSError, ValueError, json.JSONDecodeError) as e:
+            last_error = str(e)
+        if attempt < 4:
+            time.sleep(0.25)
+
+    print(f"[Monitor Trigger] 即时启动未获监控进程确认: {last_error}")
+    return False
+
+
+def bump_target_epochs(targets):
+    """为被编辑影响的检测目标递增版本，使旧检测周期立即失效。"""
+    try:
+        with open(TARGET_EPOCH_FILE, "r", encoding="utf-8") as f:
+            epochs = json.load(f)
+        if not isinstance(epochs, dict):
+            epochs = {}
+    except Exception:
+        epochs = {}
+    for ip, protocol, port in targets:
+        key = f"{ip}|{protocol}|{int(port) if port is not None else 0}"
+        epochs[key] = int(epochs.get(key, 0)) + 1
+    save_json_atomic(TARGET_EPOCH_FILE, epochs)
 
 
 def load_ip_cache():
@@ -424,22 +500,15 @@ def add_node():
             write_log("添加节点失败: IP或域名不能为空")
             return jsonify({"ok": False, "msg": "IP或域名不能为空"})
 
-        cfg = load_config()
-
-        for n in cfg.get("nodes", []):
-            if n.get("ip") == ip:
-                write_log(f"添加节点失败: 节点 [{ip}] 已存在")
-                return jsonify({"ok": False, "msg": "节点已存在"})
-
         icmp_enabled = bool(data.get("icmp_enabled", True))
         ports_raw = data.get("ports", "")
-        ports = []
         if isinstance(ports_raw, str):
             candidates = re.split(r"[,，\s]+", ports_raw.strip())
         elif isinstance(ports_raw, list):
             candidates = ports_raw
         else:
             candidates = []
+        ports = []
         for value in candidates:
             if str(value).strip():
                 try:
@@ -452,11 +521,28 @@ def add_node():
                     return jsonify({"ok": False, "msg": f"无效端口：{value}，端口范围为 1-65535"})
         if not icmp_enabled and not ports:
             return jsonify({"ok": False, "msg": "请至少启用 ICMP Ping 或填写一个 TCP 端口"})
-        cfg.setdefault("nodes", []).append({"name": name, "ip": ip,
-            "icmp_enabled": icmp_enabled, "ports": ports})
-        save_json_atomic(CONFIG_FILE, cfg)
 
+        # 配置写入与目标版本递增在同一把跨进程锁内完成。
+        with config_control_lock():
+            cfg = load_config()
+            if any(n.get("ip") == ip for n in cfg.get("nodes", [])):
+                write_log(f"添加节点失败: 节点 [{ip}] 已存在")
+                return jsonify({"ok": False, "msg": "节点已存在"})
+            cfg.setdefault("nodes", []).append({"name": name, "ip": ip,
+                "icmp_enabled": icmp_enabled, "ports": ports})
+            save_json_atomic(CONFIG_FILE, cfg)
+            affected = []
+            if icmp_enabled:
+                affected.append((ip, "ICMP", None))
+            affected.extend((ip, "TCP", port) for port in ports)
+            if affected:
+                bump_target_epochs(affected)
+
+        trigger_ok = notify_monitor_targets(affected)
         write_log(f"添加节点成功: 名称=[{name}], IP/域名=[{ip}]")
+        if not trigger_ok:
+            write_log(f"新增节点即时检测启动未获确认: [{ip}]")
+            return jsonify({"ok": True, "warning": "节点已保存，但监控进程未确认立即启动检测，请检查监控服务日志"})
         return jsonify({"ok": True})
     except Exception as e:
         write_log(f"添加节点异常: {str(e)}")
@@ -473,13 +559,30 @@ def delete_node():
             write_log("删除节点失败: IP不能为空")
             return jsonify({"ok": False, "msg": "IP不能为空"})
 
-        cfg = load_config()
-        before_len = len(cfg.get("nodes", []))
-        cfg["nodes"] = [n for n in cfg.get("nodes", []) if n.get("ip") != ip]
-        deleted_count = before_len - len(cfg["nodes"])
+        with config_control_lock():
+            cfg = load_config()
+            before_len = len(cfg.get("nodes", []))
+            removed_nodes = [n for n in cfg.get("nodes", []) if n.get("ip") == ip]
+            cfg["nodes"] = [n for n in cfg.get("nodes", []) if n.get("ip") != ip]
+            deleted_count = before_len - len(cfg["nodes"])
+            if deleted_count > 0:
+                affected = []
+                for removed in removed_nodes:
+                    if removed.get("icmp_enabled", True):
+                        affected.append((ip, "ICMP", None))
+                    raw_ports = removed.get("ports", [])
+                    if isinstance(raw_ports, str):
+                        raw_ports = re.split(r"[,，\s]+", raw_ports.strip())
+                    for value in raw_ports if isinstance(raw_ports, list) else []:
+                        try:
+                            affected.append((ip, "TCP", int(value)))
+                        except (TypeError, ValueError):
+                            pass
+                save_json_atomic(CONFIG_FILE, cfg)
+                if affected:
+                    bump_target_epochs(affected)
 
         if deleted_count > 0:
-            save_json_atomic(CONFIG_FILE, cfg)
             write_log(f"删除节点成功: IP/域名=[{ip}]")
         else:
             write_log(f"删除节点失败: 未找到节点 [{ip}]")
@@ -488,7 +591,6 @@ def delete_node():
             try:
                 with open(STATUS_FILE, "r", encoding="utf-8") as f:
                     status = json.load(f)
-
                 if ip in status:
                     del status[ip]
                     save_json_atomic(STATUS_FILE, status)
@@ -546,36 +648,86 @@ def edit_node():
                     return jsonify({"ok": False, "msg": f"无效端口：{value}，端口范围为 1-65535"})
         if not icmp_enabled and not ports:
             return jsonify({"ok": False, "msg": "请至少启用 ICMP Ping 或填写一个 TCP 端口"})
+        old_icmp = bool(target.get("icmp_enabled", True))
+        old_ports_raw = target.get("ports", [])
+        if isinstance(old_ports_raw, str):
+            old_ports_raw = re.split(r"[,，\s]+", old_ports_raw.strip())
+        old_ports = set()
+        for value in old_ports_raw if isinstance(old_ports_raw, list) else []:
+            try:
+                old_ports.add(int(value))
+            except (TypeError, ValueError):
+                pass
+        new_ports = set(ports)
+        affected = []
+        start_targets = []
+        if old_ip != new_ip:
+            if old_icmp:
+                affected.append((old_ip, "ICMP", None))
+            affected.extend((old_ip, "TCP", p) for p in old_ports)
+            if icmp_enabled:
+                affected.append((new_ip, "ICMP", None))
+                start_targets.append((new_ip, "ICMP", None))
+            affected.extend((new_ip, "TCP", p) for p in new_ports)
+            start_targets.extend((new_ip, "TCP", p) for p in new_ports)
+        else:
+            if old_icmp != icmp_enabled:
+                affected.append((old_ip, "ICMP", None))
+                if icmp_enabled:
+                    start_targets.append((old_ip, "ICMP", None))
+            affected.extend((old_ip, "TCP", p) for p in old_ports.symmetric_difference(new_ports))
+            start_targets.extend((old_ip, "TCP", p) for p in new_ports - old_ports)
+
         target["name"] = new_name
         target["ip"] = new_ip
         target["icmp_enabled"] = icmp_enabled
         target["ports"] = ports
-        save_json_atomic(CONFIG_FILE, cfg)
+        # 与监控进程最终离线提交使用同一把跨进程锁。
+        with config_control_lock():
+            save_json_atomic(CONFIG_FILE, cfg)
+            if affected:
+                bump_target_epochs(affected)
 
-        # IP 改变后清理旧状态，避免旧 IP 残留在面板。
-        if old_ip != new_ip and os.path.exists(STATUS_FILE):
+        # 同步清理已删除的检测目标状态，避免旧端口/旧 ICMP 数据继续残留在面板。
+        if os.path.exists(STATUS_FILE):
             try:
                 with open(STATUS_FILE, "r", encoding="utf-8") as f:
                     status = json.load(f)
-                if old_ip in status:
-                    del status[old_ip]
-                    save_json_atomic(STATUS_FILE, status)
-            except Exception as e:
-                print(f"[Warning] 编辑节点清理旧状态失败: {e}")
+                if not isinstance(status, dict):
+                    status = {}
 
-        # 仅修改名称时，同步现有状态中的名称。
-        if old_ip == new_ip and os.path.exists(STATUS_FILE):
-            try:
-                with open(STATUS_FILE, "r", encoding="utf-8") as f:
-                    status = json.load(f)
-                if new_ip in status:
-                    status[new_ip]["name"] = new_name
-                    status[new_ip]["ip"] = new_ip
-                    save_json_atomic(STATUS_FILE, status)
-            except Exception as e:
-                print(f"[Warning] 编辑节点同步状态失败: {e}")
+                if old_ip != new_ip:
+                    # IP 改变时，旧 IP 下的 ICMP、TCP 及汇总状态全部失效。
+                    status.pop(old_ip, None)
+                else:
+                    item = status.get(new_ip)
+                    if isinstance(item, dict):
+                        # 只删除本次编辑中移除的 TCP 端口，保留未修改端口的状态。
+                        tcp_state = item.get("tcp")
+                        if isinstance(tcp_state, dict):
+                            for removed_port in old_ports - new_ports:
+                                tcp_state.pop(str(removed_port), None)
+                            item["tcp"] = tcp_state
 
+                        # 关闭 ICMP 后清除其历史状态及顶层 ICMP 汇总字段。
+                        # 节点名称、IP 和 TCP 状态均保留。
+                        if old_icmp and not icmp_enabled:
+                            item.pop("icmp", None)
+                            for field in ("status", "delay", "fail", "last", "offline_since"):
+                                item.pop(field, None)
+
+                        item["name"] = new_name
+                        item["ip"] = new_ip
+
+                save_json_atomic(STATUS_FILE, status)
+            except Exception as e:
+                print(f"[Warning] 编辑节点清理/同步状态失败: {e}")
+
+        trigger_ok = notify_monitor_targets(start_targets) if start_targets else True
         write_log(f"编辑节点成功: [{old_ip}] -> 名称=[{new_name}], IP/域名=[{new_ip}]")
+        if not trigger_ok:
+            write_log(f"即时检测启动未获确认: [{new_ip}]，请检查 tcpingmonitor 监控服务及控制通道")
+            return jsonify({"ok": True, "warning": "配置已保存，但监控进程未确认立即启动检测，请检查监控服务日志"})
         return jsonify({"ok": True})
     except Exception as e:
         write_log(f"编辑节点异常: {str(e)}")
