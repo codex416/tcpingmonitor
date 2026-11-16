@@ -755,11 +755,22 @@
 .node-health-pill.health-offline { color:#d93630; background:rgba(255,69,58,.12); }
 .node-health-pill.health-checking { color:#a96500; background:rgba(255,159,10,.14); }
 .node-health-pill.health-unconfigured { color:#737780; background:rgba(120,120,128,.10); }
+.tcp-port-state.badge-unconfigured {
+    color:#737780;
+    background:rgba(120,120,128,.11);
+}
+
+.node-health-pill.health-stopped { color:#737780; background:rgba(120,120,128,.10); }
 .protocol-disabled-badge, .icmp-disabled-badge, .tcp-disabled-badge { display:inline-flex; align-items:center; justify-content:center; gap:5px; border:0; border-radius:999px; padding:3px 8px; color:#737780; background:rgba(120,120,128,.11); font-size:10px; font-weight:650; line-height:1.35; white-space:nowrap; }
 .icmp-disabled-badge[hidden], .tcp-disabled-badge[hidden] { display:none !important; }
 .tcp-port-state.protocol-disabled-badge { min-width:68px; padding:5px 9px; }
 /* 未启用状态使用纯文字气泡，不显示检测状态前缀小圆点。 */
 .tcp-port-state.protocol-disabled-badge::before { display:none !important; content:none !important; }
+.tcp-port-state.badge-unconfigured::before {
+    display:none !important;
+    content:none !important;
+}
+
 .node-delay { font-size: 21px !important; font-weight: 750; letter-spacing: -.6px; font-variant-numeric: tabular-nums; }
 
 .node-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 10px 11px; border-radius: 12px; background: #f7f8fa; }
@@ -1289,11 +1300,19 @@ async function refreshIPLocations(nodes) {
 function nodeStatusData(node, statusMap, isRunning) {
     const stored = statusMap[node.ip] || {};
     const icmpEnabled = node.icmp_enabled !== false;
-    const icmp = stored.icmp || (stored.status ? { status: stored.status, delay: stored.delay, last: stored.last, fail: stored.fail } : {});
-    const tcp = isRunning ? (stored.tcp || {}) : {};
-    let displayDelay = "-";
-    let delaySource = "暂无有效延迟";
     const configuredPorts = Array.isArray(node.ports) ? node.ports : [];
+    const storedIcmp = stored.icmp || (stored.status ? { status: stored.status, delay: stored.delay, last: stored.last, fail: stored.fail } : {});
+    const icmp = isRunning ? storedIcmp : {
+        status: icmpEnabled ? "已停止" : "未启用",
+        delay: "-", last: "-", fail: 0, offline_since: null
+    };
+    const tcp = isRunning
+        ? (stored.tcp || {})
+        : Object.fromEntries(configuredPorts.map(port => [
+            String(port), { status: "已停止", delay: "-", fail: 0 }
+        ]));
+    let displayDelay = "-";
+    let delaySource = isRunning ? "暂无有效延迟" : "监控服务已停止";
     const tcpStates = configuredPorts.map(port => tcp[String(port)] || {});
     const successfulTcpDelays = tcpStates
         .filter(state => state.status === "在线")
@@ -1312,17 +1331,18 @@ function nodeStatusData(node, statusMap, isRunning) {
         delaySource = "在线 TCP 端口中最快的 TCPing 延迟";
     } else if (!icmpEnabled) {
         if (!configuredPorts.length) {
-            displayDelay = "TCP 未配置";
+            displayDelay = "-";
         } else if (tcpStates.some(state => !state.status || state.status === "检测中")) {
             displayDelay = "--";
         } else if (tcpStates.every(state => state.status === "离线")) {
             displayDelay = "-";
         } else {
-            displayDelay = "TCP --";
+            displayDelay = "-";
         }
     }
     return {
         name: node.name, ip: node.ip,
+        service_running: !!isRunning,
         icmp_enabled: icmpEnabled,
         icmp: {
             status: !icmpEnabled ? "未启用" : (icmp.status || (isRunning ? "检测中" : "等待检测")),
@@ -1332,11 +1352,11 @@ function nodeStatusData(node, statusMap, isRunning) {
             offline_since: icmp.offline_since || null
         },
         ports: Array.isArray(node.ports) ? node.ports : [],
-        status: !icmpEnabled ? "未启用" : (isRunning ? (icmp.status || "检测中") : "等待检测"),
+        status: !icmpEnabled ? "未启用" : (isRunning ? (icmp.status || "检测中") : "已停止"),
         delay: displayDelay,
         delay_source: delaySource,
         last: !icmpEnabled ? "-" : (icmp.last || "-"),
-        offline_since: icmp.offline_since || stored.offline_since || null,
+        offline_since: isRunning ? (icmp.offline_since || stored.offline_since || null) : null,
         fail: icmpEnabled
             ? (icmp.fail || 0)
             : Math.max(0, ...Object.values(tcp).map(state => Number(state.fail) || 0)),
@@ -1429,9 +1449,11 @@ function updateNodeCard(card, item) {
     const tcpOnline = tcpStates.filter(x => x.status === '在线').length;
     const tcpOffline = tcpStates.filter(x => x.status === '离线').length;
     const tcpPending = tcpStates.some(x => !x.status || x.status === '检测中');
-    let health = 'checking';
+    let health = item.service_running === false ? 'stopped' : 'checking';
 
-    if (item.icmp_enabled === false) {
+    if (item.service_running === false) {
+        health = 'stopped';
+    } else if (item.icmp_enabled === false) {
         if (!configuredPorts.length) health = 'unconfigured';
         else if (!tcpPending) {
             if (tcpOnline === configuredPorts.length) health = 'online';
@@ -1468,7 +1490,7 @@ function updateNodeCard(card, item) {
     const tcpDisabledBadge = card.querySelector('.tcp-disabled-badge');
     if (icmpDisabledBadge) icmpDisabledBadge.hidden = item.icmp_enabled !== false;
     if (tcpDisabledBadge) tcpDisabledBadge.hidden = configuredPorts.length > 0;
-    const label = health === 'online' ? '正常' : health === 'offline' ? '离线' : health === 'warning' ? '部分异常' : health === 'unconfigured' ? '未配置' : '检测中';
+    const label = health === 'stopped' ? '已停止' : health === 'online' ? '正常' : health === 'offline' ? '离线' : health === 'warning' ? '部分异常' : health === 'unconfigured' ? '未配置' : '检测中';
     if (healthPill) {
         healthPill.className = `node-health-pill health-${health}`;
         healthPill.textContent = label;
@@ -1476,7 +1498,7 @@ function updateNodeCard(card, item) {
     // 状态圆点与综合状态气泡使用同一状态映射，避免同一节点出现不同颜色。
     const dotCls = health === 'online' ? 'badge-online'
         : health === 'offline' ? 'badge-offline'
-        : health === 'unconfigured' ? 'badge-unconfigured'
+        : (health === 'unconfigured' || health === 'stopped') ? 'badge-unconfigured'
         : health === 'warning' ? 'badge-warning' : 'badge-checking';
     if (statusEl) statusEl.className = "node-status-dot node-status " + dotCls;
     if (delayEl) {
@@ -1494,7 +1516,7 @@ function updateNodeCard(card, item) {
         const icmpStatus = item.icmp_enabled === false ? '未启用' : (icmpState.status || '检测中');
         icmpStateEl.className = 'tcp-port-state icmp-check-state ' +
             (icmpStatus === '在线' ? 'badge-online' : (icmpStatus === '离线' ? 'badge-offline' :
-            (icmpStatus === '未启用' ? 'badge-unconfigured protocol-disabled-badge' : 'badge-checking')));
+            ((icmpStatus === '未启用' || icmpStatus === '已停止') ? 'badge-unconfigured' : 'badge-checking')));
         icmpStateEl.textContent = icmpStatus === '在线'
             ? (icmpState.delay && icmpState.delay !== '-' ? icmpState.delay : '在线')
             : (icmpStatus === '未启用' ? '未启用' : icmpStatus);
@@ -1513,7 +1535,7 @@ function updateNodeCard(card, item) {
         const stateEl = row.querySelector('.tcp-port-state');
         if (!stateEl) return;
         const tcpStatus = state.status || "检测中";
-        stateEl.className = 'tcp-port-state ' + (tcpStatus === '在线' ? 'badge-online' : (tcpStatus === '离线' ? 'badge-offline' : 'badge-checking'));
+        stateEl.className = 'tcp-port-state ' + (tcpStatus === '在线' ? 'badge-online' : (tcpStatus === '离线' ? 'badge-offline' : (tcpStatus === '已停止' ? 'badge-unconfigured' : 'badge-checking')));
         stateEl.textContent = tcpStatus === '在线' ? (state.delay || '在线') : tcpStatus;
         const offlineEl = row.querySelector('.tcp-offline-time');
         if (offlineEl) {
