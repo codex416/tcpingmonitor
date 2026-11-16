@@ -22,6 +22,9 @@ from urllib.parse import quote
 # 应用启动时间标识
 APP_START_TIME = time.time()
 
+# 运行时文件统一允许所属组写入；项目目录使用 setgid 确保新文件继承 www-data 组。
+os.umask(0o002)
+
 # 路径配置
 BASE_DIR = "/opt/tcpingmonitor"
 CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
@@ -158,14 +161,8 @@ def write_log(msg):
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry = f"[{timestamp}] {msg}\n"
 
-        try:
-            with open(LOG_FILE, "a", encoding="utf-8") as f:
-                f.write(log_entry)
-        except PermissionError:
-            # 遭遇 root 创建文件的权限锁定时，使用 sudo 强行修改日志文件权限为 666 (全员可读写)
-            subprocess.run(["sudo", "chmod", "666", LOG_FILE], check=False)
-            with open(LOG_FILE, "a", encoding="utf-8") as f:
-                f.write(log_entry)
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(log_entry)
     except Exception as e:
         print(f"[Log Error] 写入日志失败: {e}")
 
@@ -193,6 +190,8 @@ def save_json_atomic(filepath, data):
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
+        # os.replace 会把临时文件的属主/权限一并带到目标文件。
+        os.chmod(temp_file, 0o664)
         os.replace(temp_file, filepath)
     except Exception as e:
         if os.path.exists(temp_file):
@@ -206,7 +205,8 @@ def save_json_atomic(filepath, data):
 @contextmanager
 def config_control_lock():
     os.makedirs(BASE_DIR, exist_ok=True)
-    with open(CONTROL_LOCK_FILE, "a+") as lock_file:
+    fd = os.open(CONTROL_LOCK_FILE, os.O_CREAT | os.O_RDWR, 0o664)
+    with os.fdopen(fd, "r+") as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
             yield
@@ -915,7 +915,6 @@ def clear_logs_file():
         if res.returncode != 0:
             res = subprocess.run(["sudo", "truncate", "-s", "0", LOG_FILE], capture_output=True)
 
-        subprocess.run(["sudo", "chmod", "666", LOG_FILE], check=False)
         if res.returncode == 0:
             cleared = True
 
