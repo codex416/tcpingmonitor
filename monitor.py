@@ -23,6 +23,9 @@ CONTROL_LOCK_FILE = os.path.join(BASE_DIR, "config_control.lock")
 MONITOR_CONTROL_HOST = "127.0.0.1"
 MONITOR_CONTROL_PORT = 49381
 
+# 与 Web 服务共享运行时文件时，默认给所属组保留写权限。
+os.umask(0o002)
+
 
 class Monitor:
     def __init__(self):
@@ -49,8 +52,8 @@ class Monitor:
             with open(LOG_FILE, "a", encoding="utf-8") as f:
                 f.write(text + "\n")
             try:
-                os.chmod(LOG_FILE, 0o666)
-            except Exception:
+                os.chmod(LOG_FILE, 0o664)
+            except OSError:
                 pass
         except Exception as e:
             print(f"[Log Error] 写入日志失败: {e}")
@@ -81,11 +84,8 @@ class Monitor:
         try:
             with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4, ensure_ascii=False)
+            os.chmod(temp_file, 0o664)
             os.replace(temp_file, STATUS_FILE)
-            try:
-                os.chmod(STATUS_FILE, 0o666)
-            except Exception:
-                pass
         except Exception as e:
             print(f"[Status Save Error] 保存状态失败: {e}")
 
@@ -187,7 +187,8 @@ class Monitor:
     @contextmanager
     def control_lock(self):
         os.makedirs(BASE_DIR, exist_ok=True)
-        with open(CONTROL_LOCK_FILE, "a+") as lock_file:
+        fd = os.open(CONTROL_LOCK_FILE, os.O_CREAT | os.O_RDWR, 0o664)
+        with os.fdopen(fd, "r+") as lock_file:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             try:
                 yield
