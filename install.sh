@@ -83,14 +83,18 @@ chmod 2775 "$APP_DIR/logs"
 
 touch "$APP_DIR/logs/monitor.log"
 chown root:www-data "$APP_DIR/logs/monitor.log"
-chmod 666 "$APP_DIR/logs/monitor.log"
+chmod 664 "$APP_DIR/logs/monitor.log"
 
-# Web 端可能直接维护这些运行时 JSON 文件。
+# Web 端和监控进程共享的运行时文件。
+touch "$APP_DIR/config_control.lock"
+
 for file in \
     "$APP_DIR/config.json" \
     "$APP_DIR/status.json" \
     "$APP_DIR/last_action.json" \
-    "$APP_DIR/ip_cache.json"; do
+    "$APP_DIR/ip_cache.json" \
+    "$APP_DIR/target_epochs.json" \
+    "$APP_DIR/config_control.lock"; do
     if [[ -f "$file" ]]; then
         chown root:www-data "$file"
         chmod 664 "$file"
